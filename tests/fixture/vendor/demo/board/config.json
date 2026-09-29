@@ -1,0 +1,2 @@
+{"subsystems": [{"subsystem": "demo",
+                 "components": [{"component": "foo", "features": []}]}]}

@@ -1,0 +1,3 @@
+# 仓库内一律 LF。fixture 里的 .sh 文件行尾是测试对象，
+# 不能在检出时被 autocrlf 改成 CRLF。
+* text=auto eol=lf

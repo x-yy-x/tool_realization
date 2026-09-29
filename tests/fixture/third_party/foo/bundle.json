@@ -1,0 +1,3 @@
+{"name": "foo",
+ "component": {"name": "foo"},
+ "deps": {"components": ["bar", "missing_part"]}}

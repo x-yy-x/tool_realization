@@ -1,0 +1,11 @@
+# shell 关键字
+if then else elif fi for do done while until case esac in function
+return break continue local export readonly declare typeset set unset
+shift eval exec trap times umask ulimit
+
+# POSIX 内建
+alias bg cd command echo false fg getopts hash jobs kill printf pwd
+read true type wait test [ : . source
+
+# 控制符号
+{ } ( )

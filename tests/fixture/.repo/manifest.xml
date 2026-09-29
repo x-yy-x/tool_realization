@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+  <default revision="refs/heads/master" remote="origin" sync-j="4"/>
+  <project name="build"          path="build"          revision="a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"/>
+  <project name="third_party/foo" path="third_party/foo" revision="0123456789abcdef0123456789abcdef01234567"/>
+  <project name="third_party/bar" path="third_party/bar" revision="deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"/>
+  <project name="src"            path="src"/>
+</manifest>

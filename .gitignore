@@ -1,0 +1,16 @@
+# 运行产物
+env.json
+out/
+*.json.tmp
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+.DS_Store
