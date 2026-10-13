@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/x-yy-x/tool_realization/schema/filelist.schema.json",
+  "title": "filelist.json",
+  "description": "L1 扫描层的产物：一次全树遍历的结果，每条带 kind 分类。设计见 src/l1_scan/README.md。生产方 src/l1_scan/，消费方 src/l2_extract/ 的全部提取任务。",
+  "type": "object",
+  "required": ["meta", "files", "stats"],
+  "additionalProperties": false,
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["source_root", "scanned_at"],
+      "additionalProperties": false,
+      "properties": {
+        "source_root": {
+          "type": "string",
+          "description": "被扫描的源码树根目录（绝对路径）。"
+        },
+        "scanned_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "扫描时刻，RFC 3339 带时区。用于和上一次扫描比对 diff。"
+        },
+        "scan_duration_s": {
+          "type": "number",
+          "minimum": 0,
+          "description": "整次遍历耗时（秒）。正常应在秒级——到分钟级说明排除规则失效了。"
+        }
+      }
+    },
+    "files": {
+      "type": "array",
+      "description": "遍历到的每个文件一条。不递归展开目录。",
+      "items": {
+        "type": "object",
+        "required": ["path", "kind"],
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "相对 source_root 的路径，统一用正斜杠（Windows 侧开发时也要归一）。"
+          },
+          "kind": {
+            "type": "string",
+            "description": "分类标签，决定 L2 把它派给哪个提取任务。只按后缀与路径判定，不读内容（shebang 探测除外）。",
+            "enum": [
+              "shell",
+              "make",
+              "gn",
+              "product",
+              "bundle",
+              "manifest",
+              "header",
+              "csrc",
+              "ldscript",
+              "kconfig",
+              "ninja",
+              "other"
+            ]
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "字节数。可选——用于挑出异常大的文件（超大文件不该进解析队列）。"
+          }
+        }
+      }
+    },
+    "stats": {
+      "type": "object",
+      "description": "统计块。不是装饰：第 2 关的 v_coverage 拿 total_files_seen 与 by_kind 和提取器的认领集求差集。",
+      "required": ["total_files_seen", "by_kind"],
+      "additionalProperties": false,
+      "properties": {
+        "total_files_seen": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "遍历到的文件总数（不含被排除的目录）。"
+        },
+        "by_kind": {
+          "type": "object",
+          "description": "每个 kind 的文件数。键必须取自 files[].kind 的 enum；没出现的 kind 可以省略。",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "excluded_dirs": {
+          "type": "array",
+          "description": "本次实际剪掉的目录（相对路径）。留证据，便于确认排除规则没配错。",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/x-yy-x/tool_realization/schema/findings.schema.json",
+  "title": "findings.json",
+  "description": "L3 验证的产物 + 修复段的执行记录：requirements 的每条需求加上「在目标环境里满足了吗」的结果。设计见 src/l3_verify/README.md 与 docs/06-修复段.md，字段说明见 src/README.md §17。生产方 src/l3_verify/（初版）与 src/l4_triage_fix/（回写处置），消费方 src/l4_triage_fix/。",
+  "type": "object",
+  "required": ["meta", "findings"],
+  "additionalProperties": false,
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["generated_at", "round"],
+      "additionalProperties": false,
+      "properties": {
+        "generated_at": { "type": "string", "format": "date-time" },
+        "round": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "修复轮次。0 = L3 初验；之后每过大回环 +1。整轮上限 5（docs/06 §28.5 收敛判据 ④）。"
+        },
+        "target_env": {
+          "type": "string",
+          "description": "验证跑在哪个环境里。L3 的结果依赖当前系统，脱敏后记录（如 wsl2/ubuntu-26.04）。"
+        }
+      }
+    },
+
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "req", "gate", "severity", "kind", "name", "result", "evidence"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^F-[0-9]{4,}$" },
+
+          "req": {
+            "type": "string",
+            "pattern": "^REQ-[0-9]{5}$",
+            "description": "指回 requirements.json 的 id。finding 自己不带 declared_at ——从那边捞，避免两份真相。"
+          },
+
+          "gate": {
+            "type": "string",
+            "pattern": "^g(-?[0-9]+)$",
+            "description": "哪一关产出的（g0…g8，预检是 g-2 / g-1）。决定分诊时配哪套上下文、允许哪些动作。"
+          },
+
+          "severity": {
+            "type": "string",
+            "enum": ["block", "warn", "info"],
+            "description": "L4 判读后的档位。默认继承 requirements 的 severity，L4 可按 result 调整——出口条件是 block 清零，不是 findings 清零。"
+          },
+
+          "kind": { "type": "string", "description": "透传自 requirements，便于不查表就看得懂这条是什么。" },
+          "name": { "type": "string" },
+
+          "declared_at": { "type": "string", "pattern": "^.+:[0-9]+$", "description": "从 requirements 捞过来的。报告靠它指到行。" },
+          "declared_as": { "type": "string" },
+          "verify_cmd": { "type": "string" },
+          "maps_to": {
+            "type": "array",
+            "items": { "type": "string", "pattern": "^(ENV|BUILD|IMG|NET|SYNC|RUN)-[0-9]{3}$" }
+          },
+
+          "result": {
+            "type": "string",
+            "description": "验证结论。missing / mismatch / ok / unreachable / skip / timeout …具体取值由各验证器定义，见 src/l3_verify/README.md。",
+            "enum": ["ok", "missing", "mismatch", "unreachable", "timeout", "skip", "unknown"]
+          },
+
+          "evidence": {
+            "type": "string",
+            "description": "原始输出，不是布尔值。ENV-013 教的：timeout 退出码 124 和 1 是两回事，必须留原文给人判读。"
+          },
+          "exit_code": { "type": "integer", "description": "验证命令的退出码。有就记——它是 evidence 的一部分。" },
+
+          "fix_class": {
+            "type": "string",
+            "enum": ["A", "B", "C", "D"],
+            "description": "A 装/配 · B 改产物 · C 换环境 · D 根因未定。由规则定，不由 Agent 定（docs/06 §28.1/§28.2）。"
+          },
+          "allow": {
+            "type": "array",
+            "description": "本条允许 Agent 选的动作集。C / D 档不含 propose_patch（docs/06 §28.4）。",
+            "items": { "type": "string", "enum": ["apply_recipe", "propose_patch", "escalate", "abandon"] }
+          },
+          "decision": {
+            "type": "string",
+            "description": "Agent 分诊的结果，四选一。**Agent 出决定，脚本出动作。**",
+            "enum": ["apply_recipe", "propose_patch", "escalate", "abandon"]
+          },
+          "recipe": { "type": "string", "description": "命中 rules/knowledge.yaml 里的哪条 fix_recipe（docs/06 §28.6）。" },
+
+          "fix": { "type": "string", "description": "可执行动作（A/B 档）。C / D 档只有 advice。" },
+          "advice": { "type": "string", "description": "给人看的重建方案（C / D 档）。" },
+
+          "fix_status": {
+            "type": "string",
+            "description": "六个值，是四动作与回滚的并集。两份旧稿各列了一半，都读不出对方的产出。",
+            "enum": ["pending", "fixed", "patched", "escalated", "rolled_back", "abandoned"]
+          },
+          "attempts": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3,
+            "description": "这一条被修了几次。上限 3（docs/06 §28.5 收敛判据 ③）。"
+          }
+        }
+      }
+    }
+  }
+}

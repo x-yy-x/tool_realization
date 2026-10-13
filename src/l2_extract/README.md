@@ -1,310 +1,25 @@
-# 03 · 实现设计
+# L2 · 提取层
 
-> **本文回答**：提取器和验证器具体怎么写——到函数、正则、命令这一层。
-> **对应**：原设计文档 §15–§20（§15 三个先决决定 … §20 验证器的实现）。
+> **本文回答**：七个提取任务具体怎么写——到函数、正则、命令这一层。
+> **对应**：原设计文档 §19。**保留原 § 编号**（`19.3.5` 等被 [`05`](../../docs/05-实施顺序与风险.md)、[`06`](../../docs/06-修复段.md) 引用）。
 
-**本文出现的代码是设计稿，不是实现。** 仓库里目前没有任何可运行的代码；
-实现状态以根 `README.md` 的 STATUS 表为准。
 
-[← 02 流水线与关](02-流水线与关.md) · [04 自测与验收 →](04-自测与验收.md)
+[← 实现设计（共用地基）](../README.md) · [L3 验证 →](../l3_verify/README.md)
 
 ---
 
-> 第 1–14 节回答「**要做哪些检查、按什么顺序**」。
-> 本节回答「**那些提取器和验证器具体怎么写**」——到函数、正则、命令这一层。
+**本层职责**：读 `filelist.json`，**只解析自己认得的那几类文件**，产出 `requirements.json`。
 
----
+| | |
+| --- | --- |
+| **输入** | `filelist.json`（[`L1`](../l1_scan/README.md) 产出，带 `kind` 标签）+ `rules/*.yaml` |
+| **输出** | `requirements.json` |
+| **代码** | `src/l2_extract/` |
+| **闸门** | 第 1 关（七个 S 任务）+ 第 2 关（`v_coverage` 自检） |
 
-## 15. 三个先决决定
+**「中央遍历，分散解析」**——树只在 L1 走一次，解析按任务分头做（[`02` §29.2](../../docs/02-流水线与关.md)）。
 
-这三个决定了后面所有细节，先立住。
-
-### 15.1 扫描器必须跑在**被检查的环境里**
-
-`command -v mcopy` 在 Windows 上有意义吗？没有——构建发生在 WSL 里。
-**宿主工具的「存在性」是环境属性，不是源码属性。**
-
-| 阶段                   | 在哪跑                     | 为什么                                   |
-| ---------------------- | -------------------------- | ---------------------------------------- |
-| **提取 Extract** | 哪都行                     | 只读源码树做文本分析，**环境无关** |
-| **验证 Verify**  | **必须在目标环境内** | `command -v` 的结果取决于当前系统      |
-
-这个切分不是架构洁癖：**它让全部提取器可以在 Windows 上开发并自测**（第 10 节）。
-
-### 15.2 Python 3 标准库，零依赖
-
-理由不是偏好，是被本文第 10 节和 61 条问题教出来的：
-
-| 教训        | 内容                             |
-| ----------- | -------------------------------- |
-| `ENV-003` | `python` 不一定在              |
-| `ENV-004` | pip 会被 externally-managed 挡住 |
-| `ENV-005` | Python 3.13 破坏旧代码           |
-| `ENV-013` | 连`timeout` 都可能没有         |
-
-**一个用来诊断环境缺什么的工具，自己不能对环境有要求。**
-JSON、XML、AST 全是标准库自带，不需要任何第三方包。
-
-工具还要**自查运行时**，作为第 -1 关（`hb` 本身需要 Python 3.8+，所以 WSL 侧通常没问题，但不该假设）。
-
-### 15.3 四段用文件解耦
-
-```
-阶段 A 提取  →  requirements.json  →  阶段 B 验证  →  findings.json
-                                                          │
-                            阶段 D 修复  ←  ─ ─ ─ ─ ─ ─ ─ ─┘
-                                 │   ↑ 重验
-                                 ↓
-                            阶段 C 报告  →  report.md
-```
-
-支持 `--only-extract` / `--only-verify` / `--no-fix` 分开跑。三个理由：
-
-1. **提取在 Windows 跑、验证在服务器跑** → 必须有中间文件传递
-2. 提取结果可存档 → 源码树变了能对比「需求清单的 diff」
-3. 扫一次很慢 → 验证阶段要能反复跑而不重扫
-
-**修复段单独成段还有个新理由（第 28 节）：它有破坏性。**
-
-B 档会改源码树。所以它必须能单独关（`--no-fix`）、单独跑（`--fix-only`）、
-默认不真改（`--dry-run`）、改完能回滚。**这四条要求合起来，就要求它不能散在验证里。**
-
----
-
-## 16. 目录结构
-
-```
-tool/
-  scan.py                      # 唯一入口，--stage {env,fetch,tree,fix} 四段
-  config.yaml                  # 目标配置：源码根 / 产品 / 板卡 / 端点 / 开关
-  precheck/                    # 两段预检（第 7 节的第 -2 / -1 层）
-    p_env.py                   # 第 -2 层：WSL 分发源 / CDN / 代理 / apt 源 / Windows 侧 python 身份
-    p_fetch.py                 # 第 -1 层：repo bootstrap + manifest 端点全量探测 + 并发风险预测
-    p_base.py                  # 第 -1 层：基线工具存在性 + 环境身份（OS / Python / Node vs 白名单）
-  lib/
-    shelltoken.py              # shell 分词器（S1 的地基，最需要测试）
-    treemodel.py               # 源码树模型：manifest 解析 / bundle 索引 / 文件枚举
-    report.py                  # 报告渲染（md + json）
-    rules.py                   # 规则加载与匹配
-    probe.py                   # 探测原语：DNS / 连接 / 权限，统一带 --max-time
-  extractors/
-    s1_tool.py                 # 命令 → 宿主工具需求
-    s2_repo.py                 # manifest → 源码仓需求
-    s3_part.py                 # config.json + bundle.json → 部件需求（含闭包）
-    s4_toolchain.py            # 编译器 + target_cpu → 工具链需求
-    s5_lib.py                  # libs / ldflags / .ld → 库与符号需求
-    s6_include.py              # 使用 × 声明 → 头文件缺口
-    s7_config.py               # defconfig / ARCH → 配置与架构需求
-  verifiers/
-    v_tree.py                  # 第 0 关：树完整性
-    v_coverage.py              # 第 2 关：提取自检（文件类型普查 → 差集，见 19.8）
-    v_exists.py                # command -v / test -f / test -d
-    v_identity.py              # -dumpmachine / readlink -f / -E -v
-    v_consistency.py           # 纯集合求差
-    v_reach.py                 # DNS → 连接 → 权限，三档带超时
-  fix/                         # 修复段（第 28 节）
-    triage.py                  # 每关一次：组装上下文 → 调 Agent → 收「处置决定」
-    executor.py                # 按决定执行：跑 recipe / apply patch（A 档脚本、B 档人审后）
-    loop.py                    # 小回环 / 大回环 + 四条收敛判据
-    rollback.py                # B 档改动快照与回滚
-  patches/                     # Agent 产出的 patch（默认 dry-run，人审后才 apply）
-  rules/
-    tool_denylist.txt          # shell 关键字与内建命令黑名单
-    knowledge.yaml             # 语义规则库（61 条 → 规则化）
-    whitelist.yaml             # 版本白名单 + 基线工具清单（无声明来源的那两类）
-    arch_map.yaml              # target_cpu ↔ Kbuild ARCH 映射
-  tests/
-    fixture/                   # 假源码树，离线自测用
-    test_s1_tool.py ...
-  coverage/
-    expected.yaml              # 61 编号 → 期望的声明形态（覆盖率实验的靶子）
-    coverage_report.md         # 实验产物
-  out/                         # 运行产物，不纳入版本管理
-```
-
----
-
-## 17. 数据格式
-
-**`requirements.json` 是整个工具的核心结构**——报告里「缺什么 + 出自哪一行」全靠它。
-
-```json
-{
-  "meta": {
-    "source_root": "/home/u/openharmony",
-    "product": "qemu-arm-linux-min",
-    "board": "arm_virt",
-    "scanned_at": "2026-09-22T10:00:00+08:00",
-    "tool_version": "0.1"
-  },
-  "requirements": [
-    {
-      "id": "R-00001",
-      "kind": "tool",
-      "name": "mcopy",
-      "declared_at": "device/qemu/arm_virt/mkimage.sh:42",
-      "declared_as": "mcopy -i $IMG rootfs/* ::",
-      "extractor": "S1-tool",
-      "confidence": "high",
-      "check": "CHK-EXISTS-CMD",
-      "verify_cmd": "command -v mcopy",
-      "maps_to": ["IMG-002"]
-    }
-  ],
-  "extractor_stats": {"S1": 412, "S2": 187, "S3": 96, "S4": 14, "S5": 33, "S6": 7, "S7": 6},
-  "self_check": {
-    "uncovered_file_types": [".rs", ".te", ".dts"],
-    "total_files_seen": 184203,
-    "total_files_parsed": 12930
-  }
-}
-```
-
-### 各 kind 的记录样例
-
-```json
-{"kind":"repo","name":"third_party/asmjit","declared_at":".repo/manifest.xml:214",
- "declared_as":"<project name=\"third_party/asmjit\" path=\"third_party/asmjit\" revision=\"9f3c...\"/>",
- "check":"CHK-REPO-REVISION","verify_cmd":"git -C third_party/asmjit rev-parse HEAD"}
-
-{"kind":"part","name":"bar","declared_at":"third_party/foo/bundle.json:8",
- "declared_as":"\"deps\": {\"components\": [\"bar\"]}",
- "check":"CHK-PART-RESOLVABLE","verify_cmd":"find -name bundle.json"}
-
-{"kind":"lib","name":"libfoo.a","declared_at":"src/BUILD.gn:31",
- "declared_as":"libs = [ \"foo\" ]",
- "check":"CHK-LIB-PRINT-FILE-NAME","verify_cmd":"$CC -print-file-name=libfoo.a"}
-
-{"kind":"gap","name":"uint32_t-cstdint","declared_at":"src/a.cpp:1",
- "declared_as":"uint32_t g_counter = 0;  (无 #include <cstdint>)",
- "check":"CHK-GAP-INCLUDE","verify_cmd":"static"}
-
-{"kind":"arch","name":"riscv32→riscv","declared_at":"vendor/demo/board/config.json:12",
- "declared_as":"\"target_cpu\": \"riscv32\"",
- "check":"CHK-ARCH-MAP","verify_cmd":"static"}
-```
-
-### 三个字段值得单独说
-
-| 字段            | 为什么必须有                                                                                   |
-| --------------- | ---------------------------------------------------------------------------------------------- |
-| `declared_at` | 「第 42 行的 mcopy 没带 -o」——**没有它，报告就退化成一句「缺 mcopy」**，用户还得自己找 |
-| `confidence`  | S1 是启发式的，必然有假阳性。分级让报告可用（第 19.7 节）                                      |
-| `maps_to`     | 反向指回 61 编号。**覆盖率实验靠这个字段自动算**                                         |
-
-### `findings.json`
-
-requirements 加上验证结果：
-
-```json
-{
-  "id": "F-0007",
-  "gate": "g3",
-  "severity": "block",
-  "kind": "tool",
-  "name": "mcopy",
-  "declared_at": "device/qemu/arm_virt/mkimage.sh:42",
-  "declared_as": "mcopy -i $IMG rootfs/* ::",
-  "verify_cmd": "command -v mcopy",
-  "result": "missing",
-  "evidence": "command -v mcopy → exit 1, stdout 空, stderr 空",
-  "maps_to": ["IMG-002"],
-
-  "fix_class": "A",
-  "allow": ["apply_recipe", "escalate"],
-  "decision": "apply_recipe",
-  "recipe": "K1-IMG-002",
-  "fix": "apt-get install -y mtools",
-  "fix_status": "fixed",
-  "attempts": 1
-}
-```
-
-**`evidence` 存原始输出，不是布尔值。** 因为 `ENV-013` 教的：`timeout` 退出码 124 和 1 是两回事，必须留证据给人判读。
-
-### 修复相关的字段（第 28 节）
-
-| 字段                 | 作用                                                                                |
-| -------------------- | ----------------------------------------------------------------------------------- |
-| `gate`             | 哪一关产出的。**决定分诊时配哪套上下文、允许哪些动作**                        |
-| `fix_class`        | A / B / C / D。**由规则定，不由 Agent 定**（28.1、28.2）                      |
-| `allow`            | 本条允许 Agent 选的动作集。C / D 档不含`propose_patch`（28.4）                    |
-| `decision`         | Agent 分诊的结果：`apply_recipe` / `propose_patch` / `escalate` / `abandon` |
-| `recipe`           | 命中`knowledge.yaml` 里的哪条 `fix_recipe`（28.6）                              |
-| `fix` / `advice` | **可执行动作** / **给人看的重建方案**。C / D 档只有 `advice`          |
-| `fix_status`       | `pending` / `fixed` / `rolled_back` / `abandoned`                           |
-| `attempts`         | 修了几次。**上限 3 次**（28.5 收敛判据 ③）                                   |
-
-> `source_requirement` 不必单独存——`declared_at` + `declared_as` 已经是从 `requirements.json` 里捞出来的那份。
-
-`severity` 三档：
-
-| 档        | 含义                 | 例子                                |
-| --------- | -------------------- | ----------------------------------- |
-| `block` | 必然导致构建失败     | 工具缺失、仓缺失、revision 不符     |
-| `warn`  | 大概率有问题，需人判 | mcopy 缺`-o`、uint32_t 缺 cstdint |
-| `info`  | 仅供参考             | low confidence 的 S1 命中           |
-
----
-
-## 18. 第 0 关：树完整性
-
-**必须最先实现，且失败要阻断。**
-
-> 第 1 关的七个提取器**读的就是这棵树**。
-> 树缺了一半，提取出的清单也缺一半——**而你无法从清单本身看出来它缺了**。
-> 后面所有关卡都建立在一个静默错误的结果上。
-
-### 18.1 哨兵文件（对应 `SYNC-002`）
-
-```yaml
-# config.yaml
-sentinel_files:
-  - build/build.sh
-  - build/ohos.gni
-  - build/config/BUILDCONFIG.gn
-  - .repo/manifest.xml
-```
-
-检查：逐个 `test -f <root>/<path>`。任一缺失即 `block`。
-
-### 18.2 仓清单（对应 `SYNC-003` / `SYNC-005`）
-
-```python
-# 从 manifest 拿 path 列表，逐个 test -d
-for proj in manifest.projects.values():
-    d = root / proj.path
-    if not d.is_dir():
-        findings.append(missing(proj))
-```
-
-### 18.3 固定提交（对应 `BUILD-026`）
-
-```python
-import subprocess
-
-def head_of(repo_dir):
-    r = subprocess.run(['git', '-C', str(repo_dir), 'rev-parse', 'HEAD'],
-                       capture_output=True, text=True, timeout=30)
-    return r.stdout.strip() if r.returncode == 0 else None
-
-for proj in manifest.projects.values():
-    want = proj.revision
-    if not want or not is_sha(want):
-        continue                      # 分支/标签先跳过，只钉死 SHA 的比对
-    got = head_of(root / proj.path)
-    if got is None:
-        report(proj, 'not-a-git-repo')
-    elif got != want:
-        report(proj, 'revision-mismatch', want=want, got=got)
-```
-
-`is_sha()` = 40 位十六进制。**只比对 SHA 形式的 revision**——分支名会随时间漂移，比对没有意义，硬比会误报。
-
-### 18.4 阻断行为
-
-默认 `--fail-fast`：第 0 关不过就不往下跑，退出码 2。
-留 `--force` 给「我知道树不全，只想扫现状」的场景，此时报告头部打免责声明。
+> ⚠️ **`v_coverage.py` 放在本层目录**，不放在 `l3_verify/`——它是**提取器自己的哨兵**（「我漏了哪类文件」），归属提取层；L2 的人同时拥有提取器和它的自检。
 
 ---
 
@@ -325,18 +40,23 @@ def strip_ns(el):
             e.tag = e.tag.split('}', 1)[1]
 
 def parse_manifest(path):
+    """返回 (projects, warnings)。"""
     root = ET.parse(path).getroot()
     strip_ns(root)
 
     d = root.find('default')
     default_rev = d.get('revision') if d is not None else None
 
-    projects, removed = {}, set()
+    projects, removed, warnings = {}, set(), []
     for el in root:                       # 按文档顺序处理
         if el.tag == 'remove-project':
             removed.add(el.get('name'))
         elif el.tag == 'extend-project':
-            continue                      # 只改属性，不新增仓
+            # 只加属性、不新增仓 → 仓清单按 no-op 处理。
+            # 但它能改 dest-path，**会改变树模型**，所以不能静默跳过，记一条 warn。
+            warnings.append({'kind': 'extend-project', 'name': el.get('name'),
+                             'why': '可能重定向 dest-path，树模型未必等于 manifest 字面'})
+            continue
         elif el.tag == 'project':
             projects[el.get('name')] = {
                 'path': el.get('path') or el.get('name'),
@@ -345,16 +65,22 @@ def parse_manifest(path):
             }
     for n in removed:
         projects.pop(n, None)
-    return projects
+    return projects, warnings
 ```
 
-**三个坑**：
+**三个坑 + 一个陷阱**：
 
-| 坑                          | 处理                                                      |
-| --------------------------- | --------------------------------------------------------- |
-| `xmlns` 命名空间          | `strip_ns` 剥掉，否则 `find('project')` 永远返回 None |
-| `<default revision>` 继承 | 没写`revision` 的仓继承 default                         |
-| `<remove-project>` 的次序 | **必须按文档顺序**处理，否则移除不生效              |
+| 项                              | 处理                                                      |
+| ------------------------------- | --------------------------------------------------------- |
+| `xmlns` 命名空间              | `strip_ns` 剥掉，否则 `find('project')` 永远返回 None |
+| `<default revision>` 继承     | 没写`revision` 的仓继承 default                         |
+| `<remove-project>` 的次序     | **必须按文档顺序**处理，否则移除不生效              |
+| **`<extend-project>`**    | 仓清单按 no-op，**但记一条 `warn`**——见下             |
+
+> **`extend-project` 为什么不能静默跳过**：它明面上只给已有仓加/改属性、不新增仓，所以**不影响仓清单**——这一点按 no-op 是对的。
+> 但它能改 `dest-path`，而 `dest-path` 决定仓**落在树里的哪个位置**。
+> 静默跳过的话，扫描器算出的树模型会和真实树悄悄错位，**后面所有基于路径的判断（S2/S3/S6）都跟着错**。
+> 所以：**清单不认它，但要报出来让人看一眼。** 这是「局部 no-op，全局有影响」这类规则的通例。
 
 **路径引用补充**（这是 `BUILD-023/024/026` 的形态）：
 
@@ -487,7 +213,7 @@ def segments(line):
 
 #### 19.3.3 黑名单（**准确率的关键**）
 
-**内容已落盘**：[`../rules/tool_denylist.txt`](../rules/tool_denylist.txt)。三段——shell 关键字、POSIX 内建、控制符号。
+**内容已落盘**：[`../rules/tool_denylist.txt`](../../rules/tool_denylist.txt)。三段——shell 关键字、POSIX 内建、控制符号。
 
 **这里有个值得注意的一致性**：黑名单排除了 `test`（它是 shell 内建），这正解释了为什么 `test -f` 能零依赖地当探测原语；
 而 `timeout` **不是**内建，所以 `ENV-013` 才会炸。**同一套知识在检查设计和实现两处都成立。**
@@ -497,20 +223,28 @@ def segments(line):
 `timeout 500 hb build` 里，`timeout` 和 `hb` **都是需求**：
 
 ```python
-WRAPPERS     = {'sudo', 'env', 'nohup', 'nice', 'ionice', 'setsid', 'stdbuf'}
-TIMEOUT_LIKE = {'timeout'}
+# 包装器分两类——这个区分不是抠细节，见下方「为什么 env 不算需求」
+WRAPPERS      = {'sudo', 'nohup', 'nice', 'ionice', 'setsid', 'stdbuf'}  # 本身也是需求
+SKIP_WRAPPER  = {'env', 'time'}          # 只是包装语法，不算需求；但该条降 low
+TIMEOUT_LIKE  = {'timeout'}              # 不是包装器，是 ENV-013 的主角
 
 def unwrap(seg):
-    """返回这一段涉及的全部工具名（含包装器本身）。"""
+    """返回这一段涉及的全部工具名（含包装器本身）+ 是否该降置信度。"""
     toks = tokenize(seg)
-    found, i = [], 0
+    found, low, i = [], False, 0
     while i < len(toks):
         t = toks[i]
+        if t in SKIP_WRAPPER:
+            low = True                                   # env FOO=1 make → 只要 make
+            i += 1
+            while i < len(toks) and (toks[i].startswith('-') or '=' in toks[i]):
+                i += 1
+            continue
         if t in WRAPPERS:
             found.append(t)                              # 包装器本身也是需求
             i += 1
             while i < len(toks) and (toks[i].startswith('-') or '=' in toks[i]):
-                i += 1                                   # 跳 sudo -n / env FOO=1
+                i += 1                                   # 跳 sudo -n
             continue
         if t in TIMEOUT_LIKE:
             found.append(t)
@@ -520,17 +254,28 @@ def unwrap(seg):
             continue
         found.append(t)
         break
-    return found
+    return found, low
 ```
 
 | 写法                      | 提取结果                                                                      |
 | ------------------------- | ----------------------------------------------------------------------------- |
 | `sudo -n apt install x` | `sudo`, `apt`                                                             |
 | `timeout 500 hb build`  | `timeout`, `hb`                                                           |
-| `env FOO=1 make`        | `env`, `make`                                                             |
+| `env FOO=1 make`        | `make`（**跳过 `env`**），且该条降 `low`                            |
 | `nohup ./run.sh &`      | `nohup`，且 `./run.sh` 是树内相对路径 → **不提取，标记为树内引用** |
 
 **只取 `hb` 就会漏掉 `ENV-013`。** 这正是「包装器失败 ≠ 构建失败」在实现层的落点。
+
+**为什么 `env` / `time` 不算需求，`sudo` 算？** 判据是「**它自己会不会失败**」：
+
+| 包装器       | 会自己失败吗                             | 处理                       |
+| ------------ | ---------------------------------------- | -------------------------- |
+| `sudo`     | 会（没权限就直接失败，`ENV-006`/`008`） | **算需求**，报出来   |
+| `timeout`  | 会（工具不存在 → `ENV-013`）           | **算需求**，报出来   |
+| `env`      | **不会**——它只是设个变量然后 exec      | 跳过，降 `low`           |
+| `time`     | **不会**——shell 内建（bash 里）        | 跳过，降 `low`           |
+
+把 `env` 当需求产出会污染整张工具清单：**它几乎每条构建命令里都有**，报出来就是几十条噪声，而它永远不会是失败原因。
 
 #### 19.3.5 GN action 必须递归
 
@@ -910,87 +655,3 @@ x86_64:  x86
 
 ---
 
-## 20. 验证器的实现
-
-五个，都不复杂，关键是**每条都留下原始证据**。
-
-| 验证器            | 原语                                           | 判读要点                                       |
-| ----------------- | ---------------------------------------------- | ---------------------------------------------- |
-| `v_tree`        | 哨兵文件 + manifest 对账 + 固定提交            | 树不完整时后面全是静默错误（第 18 节）         |
-| `v_coverage`    | 文件类型普查 − 提取器认领集                   | 第 2 关：防「扫描器自己漏了」（19.8）          |
-| `v_exists`      | `command -v` / `test -f` / `test -d`     | **三态**：存在 / 不存在 / 存在但不可执行 |
-| `v_identity`    | `-dumpmachine` / `readlink -f` / `-E -v` | 存在 ≠ 对                                     |
-| `v_consistency` | 纯集合运算，不碰系统                           | 闭包差、缺口差、架构映射                       |
-| `v_reach`       | `getent hosts` → `curl -I --max-time`     | 三档分层                                       |
-
-> **版本白名单（OS / Python / Node）已不在这一关。** 它只需要 WSL + 配置，不需要源码树，
-> 已挪到第 -1 层的 `precheck/p_base.py`（见第 7.0 节、第 26.7 节、第 27 节）。
-> 本关的 `v_identity` 只留**需要第 1 关提取出的工具名**才能做的那三项。
-
-### 20.1 三态而不是布尔
-
-```python
-def v_exists_cmd(name):
-    r = run(['sh', '-c', f'command -v {shlex.quote(name)}'])
-    if r.returncode != 0:
-        return 'missing'
-    path = r.stdout.strip()
-    if not os.access(path, os.X_OK):
-        return 'not-executable'          # ← 这一态最容易被漏掉
-    return 'ok', path
-```
-
-`not-executable` 单独成一态：**文件在，但没 x 位**，修复动作和「没装」完全不同（一个 `chmod`，一个 `apt install`）。
-
-### 20.2 v_identity：存在 ≠ 对
-
-三元素的直接实现：
-
-```sh
-# ① 身份：是不是我要的目标架构
-$CC -dumpmachine            # 期望 riscv32-unknown-elf
-
-# ② 真身：是不是我期望的那份，还是 PATH 里另一个同名货
-readlink -f "$(command -v $CC)"
-
-# ③ 头文件搜索路径对不对
-$CC -E -v - </dev/null 2>&1 | sed -n '/#include <...>/,/End of search/p'
-```
-
-典型场景：`arm-linux-gnueabi-gcc` 和 `arm-none-eabi-gcc` **都存在**，
-但一个只能编用户态、一个只能编裸机。**只查存在性会漏，必须查身份。**
-
-### 20.3 v_consistency：三条集合运算
-
-都不碰系统，纯算：
-
-```python
-missing_parts = closure(seeds, idx) - set(idx)          # 部件闭包差
-gaps          = used_types - declared_includes          # 使用 × 声明差
-arch_ok       = arch_map.get(target_cpu) == kbuild_arch # 映射一致性
-```
-
-**这三条是全部检查里性价比最高的**：零 I/O、零外部依赖、结果确定。
-
-### 20.4 v_reach：三档分层
-
-```
-① DNS     getent hosts <host>
-            ↳ 解析不了 = 网络/DNS 问题，到此为止
-② 连接    curl -I --silent --max-time 10 <url>
-③ 判读    按 HTTP 码分档：
-```
-
-| 返回码                   | 判定                            | 对应问题              |
-| ------------------------ | ------------------------------- | --------------------- |
-| `200` / `302`        | 通                              | —                    |
-| `401` / `403`        | **通，但凭证/权限有问题** | `SYNC-004` 就是这档 |
-| `404`                  | 仓名或路径错                    | —                    |
-| `000` / `curl: (28)` | 超时，网络不通                  | `NET-*`             |
-| `curl: (6)`            | DNS 解析失败                    | `NET-*`             |
-
-**分档的意义**：`403` 和「连不上」是**完全不同的修复动作**。报成一句「仓库不可达」等于没报。
-
-每个请求都要 `--max-time`——**验证器自己不能挂住**，这是 `SYNC-001` 的教训。
-
----

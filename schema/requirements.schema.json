@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/x-yy-x/tool_realization/schema/requirements.schema.json",
+  "title": "requirements.json",
+  "description": "L2 提取层的产物：从源码文件里读出的全部声明。整个工具的核心——报告里「缺什么 + 出自哪一行」全靠它。设计见 src/l2_extract/README.md，字段说明见 src/README.md §17。生产方 src/l2_extract/，消费方 src/l3_verify/。",
+  "type": "object",
+  "required": ["meta", "requirements"],
+  "additionalProperties": false,
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["source_root", "scanned_at", "tool_version"],
+      "additionalProperties": false,
+      "properties": {
+        "source_root": { "type": "string", "description": "取自 filelist.json 的 meta.source_root，不重算。" },
+        "product": { "type": "string", "description": "目标产品名，如 qemu-arm-linux-min。决定哪些 vendor 配置进入闭包计算。" },
+        "board": { "type": "string", "description": "目标板卡名，如 arm_virt。" },
+        "scanned_at": { "type": "string", "format": "date-time" },
+        "tool_version": { "type": "string", "description": "产出本文件的工具版本。换版本后 requirements 可能变，比对前先看这个字段。" }
+      }
+    },
+
+    "requirements": {
+      "type": "array",
+      "description": "一条需求 = 源码树里的一处声明。顺序不重要，靠 id 引用。",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "name", "declared_at", "declared_as", "extractor", "confidence", "check"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^REQ-[0-9]{5}$",
+            "description": "全局唯一。前缀固定 REQ- ——不要用 R- 前缀，那和 docs/05-实施顺序与风险.md 的实现风险编号 R1–R14 撞名。"
+          },
+          "kind": {
+            "type": "string",
+            "description": "需求种类，决定它默认派给哪个验证器。12 种 kind 映射到六个验证器，多对一。",
+            "enum": [
+              "tool",
+              "repo",
+              "component",
+              "toolchain",
+              "lib",
+              "symbol",
+              "header",
+              "gap",
+              "config",
+              "arch",
+              "semantic",
+              "version"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "被声明的那个东西的名字（mcopy / third_party/asmjit / libnosys.a …）。"
+          },
+          "declared_at": {
+            "type": "string",
+            "pattern": "^.+:[0-9]+$",
+            "description": "文件路径:行号。没有它，报告就退化成一句「缺 mcopy」，用户还得自己找。"
+          },
+          "declared_as": {
+            "type": "string",
+            "description": "声明处的原文片段，逐字摘录不加工。让人一眼看出是哪种写法被识别了。"
+          },
+          "extractor": {
+            "type": "string",
+            "pattern": "^(S[1-7]|K[12])(-[a-z0-9]+)?$",
+            "description": "哪个任务产出的。带子任务后缀（S5-lib）标识到具体识别逻辑；extractor_stats 的键则是不带后缀的 S1…S7。"
+          },
+          "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low"],
+            "description": "S1 是启发式分词，必然有假阳性。分级让报告可用：low 的一律只当 info（src/l2_extract/README.md §19.7）。"
+          },
+          "check": {
+            "type": "string",
+            "pattern": "^CHK-[A-Z0-9-]+$",
+            "description": "路由表：把这条需求接到哪个验证器。这是 requirements.json 的唯一路由字段——提取任务不认识验证器，验证器也不认识源码。已文档化的六个：CHK-EXISTS-CMD / CHK-REPO-REVISION / CHK-COMPONENT-RESOLVABLE / CHK-LIB-EXISTS / CHK-GAP-INCLUDE / CHK-ARCH-MAP。"
+          },
+          "verify_cmd": {
+            "type": "string",
+            "description": "实际要在目标环境里跑的命令。写 static 表示纯静态判定，不需要目标环境。"
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["block", "warn", "info"],
+            "description": "默认档，跟着 check 走（CHK-EXISTS-CMD → block）。L4 可按验证结果上调或下调，改动理由写进报告。"
+          },
+          "maps_to": {
+            "type": "array",
+            "description": "反向指回 problems/ 里的原始编号。覆盖率实验靠这个字段自动算——不要手工维护统计表。",
+            "items": { "type": "string", "pattern": "^(ENV|BUILD|IMG|NET|SYNC|RUN)-[0-9]{3}$" }
+          }
+        }
+      }
+    },
+
+    "extractor_stats": {
+      "type": "object",
+      "description": "每个提取任务产出多少条。键是不带后缀的 S1…S7 / K1 / K2。",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+
+    "self_check": {
+      "type": "object",
+      "description": "第 2 关（v_coverage）的输入。提取器自己交代「我可能漏了什么」。",
+      "additionalProperties": false,
+      "properties": {
+        "uncovered_file_types": {
+          "type": "array",
+          "description": "出现在 filelist 的 other 里、却没有任何提取器认领的后缀。非空即说明规则缺了一类——补规则，不是补特例。",
+          "items": { "type": "string" }
+        },
+        "total_files_seen": { "type": "integer", "minimum": 0, "description": "透传自 filelist 的 stats。" },
+        "total_files_parsed": { "type": "integer", "minimum": 0, "description": "实际打开读过的文件数。parse / seen 的比例就是这套设计的全部代价所在。" }
+      }
+    }
+  }
+}
