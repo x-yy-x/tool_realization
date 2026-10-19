@@ -1,0 +1,39 @@
+{
+  "description": "Manually labelled S1-only cases for checking missed and spurious tool requirements in the synthetic fixture.",
+  "certain_requirements": [
+    {"name": "hb", "declared_at": "Makefile:3", "source_type": "make", "confidence": "high"},
+    {"name": "timeout", "declared_at": "Makefile:3", "source_type": "make", "confidence": "high"},
+    {"name": "rm", "declared_at": "Makefile:6", "source_type": "make", "confidence": "medium"},
+    {"name": "genconfig", "declared_at": "build.sh:3", "source_type": "shell", "confidence": "high"},
+    {"name": "hb", "declared_at": "build.sh:5", "source_type": "shell", "confidence": "high"},
+    {"name": "timeout", "declared_at": "build.sh:5", "source_type": "shell", "confidence": "high"},
+    {"name": "env", "declared_at": "build.sh:6", "source_type": "shell", "confidence": "high"},
+    {"name": "nice", "declared_at": "build.sh:6", "source_type": "shell", "confidence": "high"},
+    {"name": "ninja", "declared_at": "build.sh:6", "source_type": "shell", "confidence": "high"},
+    {"name": "ninja", "declared_at": "scripts/image.py:7", "source_type": "python", "confidence": "high"},
+    {"name": "mkfs.vfat", "declared_at": "scripts/image.py:8", "source_type": "python", "confidence": "high"},
+    {"name": "mcopy", "declared_at": "scripts/image.py:9", "source_type": "python", "confidence": "high"},
+    {"name": "env", "declared_at": "scripts/probe.sh:5", "source_type": "shell", "confidence": "medium"},
+    {"name": "hb", "declared_at": "scripts/probe.sh:5", "source_type": "shell", "confidence": "medium"},
+    {"name": "sudo", "declared_at": "scripts/probe.sh:5", "source_type": "shell", "confidence": "medium"},
+    {"name": "timeout", "declared_at": "scripts/probe.sh:5", "source_type": "shell", "confidence": "medium"}
+  ],
+  "low_candidates": [
+    {"name": "mcopy", "declared_at": "BUILD.gn:4", "source_type": "gn_args", "confidence": "low"}
+  ],
+  "unresolved": [
+    {"declared_at": "BUILD.gn:4", "declared_as": "rebase_path(target_out_dir)", "reason": "GN args expression is not a direct string; not guessed"},
+    {"declared_at": "Makefile:4", "declared_as": "\t$(CC) -o image $(OBJS) -lc -lnosys -L /sysroot/lib", "reason": "Dynamic command name; not guessed"},
+    {"declared_at": "build.sh:7", "declared_as": "\"$OPTIONAL_TOOL\" --version", "reason": "Dynamic command name; not guessed"},
+    {"declared_at": "scripts/image.py:13", "declared_as": "subprocess.run([tool, image], check=True)", "reason": "Dynamic or empty Python argv"}
+  ],
+  "negative_probes": [
+    {"declared_at": "BUILD.gn:4", "expected_names": []},
+    {"declared_at": "build.sh:2", "expected_names": []},
+    {"declared_at": "build.sh:4", "expected_names": []},
+    {"declared_at": "Makefile:4", "expected_names": []},
+    {"declared_at": "scripts/probe.sh:3", "expected_names": []},
+    {"declared_at": "scripts/image.py:15", "expected_names": []}
+  ],
+  "expected_files_parsed": 5
+}

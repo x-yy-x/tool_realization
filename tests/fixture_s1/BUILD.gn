@@ -1,0 +1,9 @@
+# S1-only integration fixture. This file is read, never executed.
+action("image") {
+  script = "//scripts/image.py"
+  args = [ "--tool", "mcopy", "--image", rebase_path(target_out_dir) ]
+}
+
+action_foreach("probe") {
+  script = "scripts/probe.sh"
+}

@@ -8,7 +8,7 @@
 
 ## STATUS：哪些能跑，哪些还是设计
 
-**先看这张表再看别的** —— 这个仓库目前是**一套完整设计，还没有可运行的代码**。
+**共享 Shell 分词器和 S1 独立提取器已可运行**，采用分类解析 → 字面常量提取 → 工具识别过滤 → 来源与置信度标注的处理链。其余层仍按设计推进；接口和集成边界见 [S1 实现说明](docs/S1-流水线实现.md)。
 
 | 部件                                  | 位置                                                     | 状态                                                                 |
 | ------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------------------- |
@@ -18,7 +18,7 @@
 | 假源码树（离线自测用）                | [`tests/fixture/`](tests/fixture)                      | ✅ 已落盘，6 个文件                                                  |
 | 工具黑名单                            | [`rules/tool_denylist.txt`](rules/tool_denylist.txt)    | ✅ 已落盘                                                            |
 | **L1 扫描**                     | [`src/l1_scan/`](src/l1_scan)                          | ⬜ 设计完成（[本层 README](src/l1_scan/README.md)），未实现          |
-| **L2 提取**（七个 S 任务）      | [`src/l2_extract/`](src/l2_extract)                    | ⬜ 设计完成（[本层 README](src/l2_extract/README.md)），未实现          |
+| **L2 提取**（七个 S 任务） | [`src/l2_extract/`](src/l2_extract) | 🟡 shelltoken 与 S1 独立实现可运行，154 项测试通过；其余 S 任务和统一 filelist/schema 接口待集成 |
 | **L3 验证**（六个 `v_*`）    | [`src/l3_verify/`](src/l3_verify)                      | ⬜ 设计完成（[本层 README](src/l3_verify/README.md)），未实现          |
 | **L4 判读与修改**               | [`src/l4_triage_fix/`](src/l4_triage_fix)              | ⏸️ **本轮先不管**（设计在 [本层 README](src/l4_triage_fix/README.md) + [`06`](docs/06-修复段.md)） |
 | `common/`（多层共用）               | [`src/common/`](src/common)                            | ⬜ 未实现                                                            |
@@ -27,7 +27,7 @@
 | `coverage/expected.yaml` 覆盖率靶子 | —                                                       | ⚠️**未落盘**：§22 只写出 61 条里的 12 条                       |
 | `rules/arch_map.yaml`               | —                                                       | ⚠️**未落盘**：§19.7 明确要求「对着树核一遍再落地，别照抄」     |
 
-**每个 `src/` 子目录里现在只有一份 `README.md`——那不只是导航，它就是这一层的设计文档**（职责、输入输出、算法、已知边界都在里面）。**没有任何 `.py`**：没实现的东西不写成空壳，只存在于文档里。
+**每层的设计文档仍位于各自 `README.md`**。`src/l2_extract/` 已有共享分词器与 S1 分阶段模块，独立协调入口位于 `extractors/s1_tool.py`；未实现的层和任务仍只保留设计文档。
 
 > **本轮范围**：只做 **L1–L3**（扫描 → 提取 → 验证）。**L4 判读与修改先不动**——它的设计已经写完、放在原地，但这一轮不碰。理由：L1–L3 全只读、可离线自测；L4 是唯一有副作用的层，等前面三层跑通了再谈。
 
@@ -75,9 +75,15 @@ flowchart LR
 
 ## 快速开始
 
-**暂时没有可运行的东西。** 设计完整，实现未开始——见上面的 STATUS 表。
+Python 3.10+，仅标准库。在仓库根目录运行：
 
-唯一能离线演练的资产是 `tests/fixture/`（假树 6 个文件已落盘，断言清单在 [§21.2](docs/04-自测与验收.md)），但要等提取器实现出来才能真正跑起来。
+```sh
+python -m unittest discover -s tests -v
+python -m extractors.s1_tool --root tests/fixture_s1 --output out/s1_requirements.json --show-low
+python tests/review_fp_fn.py
+```
+
+S1 当前产出独立报告，统一入口及冻结 schema 的适配待集成；完整说明见 [S1 实现说明](docs/S1-流水线实现.md)。原始 `tests/fixture/` 保持不变，新增 `tests/fixture_s1/` 覆盖四类输入。
 
 从哪一步开始、每步的验收标准：见 [`docs/05-实施顺序与风险.md`](docs/05-实施顺序与风险.md)。
 
@@ -96,7 +102,7 @@ flowchart LR
 
 职责划分：**程序负责确定性的部分（扫描、验证、执行 recipe、回滚），skill 负责需要判断的部分（分诊、出候选修法）。** 这条线在代码上就是 `triage.py`（只产决定数据）和 `executor.py`（只消费决定执行）为什么是两个文件——[L4 §30.2](src/l4_triage_fix/README.md)。
 
-> 两者都还没实现。`src/` 下目前只有每层的 `README.md`。
+> 统一 `scan.py` 和 Agent skill 尚未实现；当前可独立运行 S1 提取器及其离线测试。
 
 ---
 
@@ -143,7 +149,7 @@ tool/
 
 ## 这套东西不做什么
 
-- **不编译、不执行**——不跑 `hb build`，也不执行源码树里的任何脚本。对源码只做**静态文本分析**（读、分词、正则），不建 AST、不做语义解析
+- **不编译、不执行源码**——不跑 `hb build`，也不执行被扫描的脚本。S1 使用静态分词及标准库 Python AST 识别调用和字面常量，不求值变量或动态表达式
 - **大部分不依赖 `gn gen`**——只有 2 条（`BUILD-027` / `BUILD-031`）需要 `gn gen` 之后的产物才能查，其余从源码树直接读（[`01` §11](docs/01-问题与论证.md)）
 - **不做破坏性探测**——所有探测全程只读。共享服务器上 `pkill` 会误杀他人进程，所以本工具用存在性检查，不做 kill 类探测
 - **不追求 findings 清零**——只要求 `block` 清零；`warn` / `info` 留给人工判断
