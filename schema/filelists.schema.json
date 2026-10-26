@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/x-yy-x/tool_realization/schema/filelists.schema.json",
+  "title": "filelists.json",
+  "description": "L1 扫描层的路由产物。一个文件一条，只记录相对路径和它要交给哪些提取器。只收录至少有一个类别的文件；没有类别的文件不出现。这是路由表，不是全树清单。",
+  "$comment": "Frozen 2026-10-26. 只有 path 和 classes 两个字段；不要往记录里加 lex / size / carrier / strength / sig / root / generated_at / stats。classes 必须按 S1,S3,S4,S5,S6,S7 升序；JSON Schema 不能表达数组顺序，由测试校验。",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["path", "classes"],
+    "additionalProperties": false,
+    "properties": {
+      "path": {
+        "type": "string",
+        "minLength": 1,
+        "description": "相对源码根的路径，包含文件名，统一用正斜杠。不得以 / 开头，不得含反斜杠、双斜杠、. 或 .. 路径段，不得以 / 结尾，不得是 Windows 盘符或 ~ 路径。",
+        "pattern": "^(?!/)(?!.*//).*[^/]$",
+        "not": {
+          "anyOf": [
+            { "pattern": "\\\\" },
+            { "pattern": "(^|/)\\.\\.?($|/)" },
+            { "pattern": "^[A-Za-z]:" },
+            { "pattern": "^~" },
+            { "pattern": "[\\n\\r]" }
+          ]
+        }
+      },
+      "classes": {
+        "type": "array",
+        "minItems": 1,
+        "uniqueItems": true,
+        "description": "该文件要交给哪些提取器。非空、去重、按 S1,S3,S4,S5,S6,S7 升序。S2 已移除，不出现。",
+        "items": {
+          "type": "string",
+          "enum": ["S1", "S3", "S4", "S5", "S6", "S7"]
+        }
+      }
+    }
+  },
+  "examples": [
+    [
+      {
+        "path": "base/hiviewdfx/hilog/bundle.json",
+        "classes": ["S3", "S6"]
+      },
+      {
+        "path": "base/hiviewdfx/hilog/BUILD.gn",
+        "classes": ["S1", "S4", "S5", "S7"]
+      }
+    ]
+  ]
+}

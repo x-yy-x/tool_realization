@@ -1,0 +1,53 @@
+# 复制成 config.yaml 后按目标环境填写。
+# config.yaml 已被 .gitignore 忽略；真实主机名 / 用户名 / 路径不要进仓库。
+
+# 源码树根（目标机器上的绝对路径）
+source_root: /srv/oh
+
+# 目标产品与板卡。L2 的 S3 用 product 决定哪些 vendor 配置进闭包。
+product: qemu-arm-linux-min
+board: arm_virt
+
+tool_version: "0.1"
+
+# 第 3 关 v_identity 的期望三元组。为空时从编译器名推断
+# （arm-none-eabi-gcc -> arm-none-eabi）。
+target_triple: ""
+
+# 第 5 关 v_reach：把仓名拼成 URL 的前缀。
+# 目标仓是私有站点时留空——第 5 关会返回 skip，不会编造地址。
+repo_base_url: ""
+
+# 验证用的 C 编译器。库 / 头文件 / 工具链身份都从它派生。
+cc: ""
+
+# L1 的排除规则（原地剪枝）。后三条不是「全跳」，是「跳内容、留索引」：
+#   .repo/     保留 manifest（S2 要读）
+#   out/       保留路径（BUILD-010 要判同名目录）
+#   prebuilts/ 只建索引（SYNC-005 要判存在性）
+excludes:
+  - .git/
+  - .repo/
+  - out/
+  - prebuilts/
+
+# 第 0 关的哨兵文件
+sentinel_files:
+  - build/build.sh
+  - build/ohos.gni
+  - build/config/BUILDCONFIG.gn
+  - .repo/manifest.xml
+
+# 第 -1 层与第 5 关探测的端点。name 只用于报告。
+endpoints:
+  - name: manifest
+    url: https://gitee.com/openharmony/manifest.git
+  - name: mirror
+    url: https://mirrors.example.com/openharmony/
+    timeout: 20
+
+# 每个外部动作的超时（秒）。验证器自己不能挂住。
+timeouts:
+  cmd: 30
+  dns: 5
+  http: 10

@@ -8,26 +8,27 @@
 
 ## STATUS：哪些能跑，哪些还是设计
 
-**先看这张表再看别的** —— 这个仓库目前是**一套完整设计，还没有可运行的代码**。
+**先看这张表再看别的** —— 目前只实现了「总体把握」那一份（地基层 + L3 的三个验证器），其余三层仍是设计。
 
 | 部件                                  | 位置                                                     | 状态                                                                 |
 | ------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------------------- |
-| 设计文档（问题 / 流水线 / 风险 / 分工） | [`docs/`](docs)                                        | ✅ 7 篇，完整（00–07）                                          |
+| 设计文档（问题 / 流水线 / 风险 / 调研） | [`docs/`](docs)                                        | ✅ 7 篇（00–02、04–06、08）                                      |
 | 设计文档（四层各怎么写）              | [`src/*/README.md`](src)                               | ✅ 5 篇，完整（`src/README.md` 是索引 + 四层各一篇）             |
-| **数据契约**                    | [`schema/`](schema)                                    | ✅**3 份已冻结**——四层之间就靠这三份 JSON 交接            |
+| **数据契约**                    | [`schema/`](schema)                                    | ✅ **`filelists` 已冻结**；`requirements` / `findings` 待组员决定 |
 | 假源码树（离线自测用）                | [`tests/fixture/`](tests/fixture)                      | ✅ 已落盘，6 个文件                                                  |
 | 工具黑名单                            | [`rules/tool_denylist.txt`](rules/tool_denylist.txt)    | ✅ 已落盘                                                            |
+| 入口                                  | [`scan.py`](scan.py)                                   | 🟡 `--stage verify` 可用；其余阶段明确报「未实现」（退出码 3） |
+| **地基层**（`common/`）       | [`src/common/`](src/common)                            | 🟡 `config` / `models` / `probe` / `yamlish` 已实现；`rules.py` 待做 |
 | **L1 扫描**                     | [`src/l1_scan/`](src/l1_scan)                          | ⬜ 设计完成（[本层 README](src/l1_scan/README.md)），未实现          |
 | **L2 提取**（七个 S 任务）      | [`src/l2_extract/`](src/l2_extract)                    | ⬜ 设计完成（[本层 README](src/l2_extract/README.md)），未实现          |
-| **L3 验证**（六个 `v_*`）    | [`src/l3_verify/`](src/l3_verify)                      | ⬜ 设计完成（[本层 README](src/l3_verify/README.md)），未实现          |
+| **L3 验证**（五个 `v_*`）    | [`src/l3_verify/`](src/l3_verify)                      | 🟡 `v_exists` / `v_identity` / `v_reach` 已实现；`v_tree` / `v_consistency` 待做 |
 | **L4 判读与修改**               | [`src/l4_triage_fix/`](src/l4_triage_fix)              | ⏸️ **本轮先不管**（设计在 [本层 README](src/l4_triage_fix/README.md) + [`06`](docs/06-修复段.md)） |
-| `common/`（多层共用）               | [`src/common/`](src/common)                            | ⬜ 未实现                                                            |
 | 第 -2 / -1 层：两段预检               | [`src/precheck/`](src/precheck)                        | 🟡**有能跑的原型**（`.claude/skills/edge-deploy/`），待提上来 |
 | `rules/whitelist.yaml` 基线工具清单 | —                                                       | ⚠️**未落盘**：`p_base.py` 的清单来自它，但清单本身还没定   |
 | `coverage/expected.yaml` 覆盖率靶子 | —                                                       | ⚠️**未落盘**：§22 只写出 61 条里的 12 条                       |
 | `rules/arch_map.yaml`               | —                                                       | ⚠️**未落盘**：§19.7 明确要求「对着树核一遍再落地，别照抄」     |
 
-**每个 `src/` 子目录里现在只有一份 `README.md`——那不只是导航，它就是这一层的设计文档**（职责、输入输出、算法、已知边界都在里面）。**没有任何 `.py`**：没实现的东西不写成空壳，只存在于文档里。
+**没实现的模块不写成空壳。** 每个 `src/*/README.md` 仍是该层的设计文档；已经落地的 `.py` 只覆盖「总体把握」那一份任务。
 
 > **本轮范围**：只做 **L1–L3**（扫描 → 提取 → 验证）。**L4 判读与修改先不动**——它的设计已经写完、放在原地，但这一轮不碰。理由：L1–L3 全只读、可离线自测；L4 是唯一有副作用的层，等前面三层跑通了再谈。
 
@@ -62,7 +63,7 @@
 flowchart LR
     A["第 -2 层<br/>环境预检<br/>Windows 侧"] --> B["第 -1 层<br/>获取预检<br/>只需 manifest"]
     B --> C["第 0 关<br/>树完整性"]
-    C --> D["第 0–8 关<br/>需求提取与验证"]
+    C --> D["第 0–7 关<br/>需求提取与验证"]
     D --> E{"block 清零?"}
     E -->|否| F["修复段<br/>分诊 · 小回环 · 大回环"]
     F --> D
@@ -75,11 +76,23 @@ flowchart LR
 
 ## 快速开始
 
-**暂时没有可运行的东西。** 设计完整，实现未开始——见上面的 STATUS 表。
+本版能跑**第 2 / 3 / 5 关**（存在性 / 身份 / 可达性）。它吃一份 `requirements.json`，
+吐一份 `findings.json`；`requirements.json` 目前要手写（L2 还没实现）。
 
-唯一能离线演练的资产是 `tests/fixture/`（假树 6 个文件已落盘，断言清单在 [§21.2](docs/04-自测与验收.md)），但要等提取器实现出来才能真正跑起来。
+```bash
+py scan.py --stage verify --config config.yaml \
+    --requirements out/requirements.json --out out/findings.json
+```
 
-从哪一步开始、每步的验收标准：见 [`docs/05-实施顺序与风险.md`](docs/05-实施顺序与风险.md)。
+离线自测（不需要源码树、不连服务器）：
+
+```bash
+py -m unittest discover -s tests -t . -v
+```
+
+`tests/fixture/` 是手写的微型源码树（6 个文件，每个埋一条已知故障），断言清单在
+[§21.2](docs/04-自测与验收.md)。从哪一步开始、每步的验收标准见
+[`docs/05-实施顺序与风险.md`](docs/05-实施顺序与风险.md)。
 
 ---
 
@@ -96,7 +109,7 @@ flowchart LR
 
 职责划分：**程序负责确定性的部分（扫描、验证、执行 recipe、回滚），skill 负责需要判断的部分（分诊、出候选修法）。** 这条线在代码上就是 `triage.py`（只产决定数据）和 `executor.py`（只消费决定执行）为什么是两个文件——[L4 §30.2](src/l4_triage_fix/README.md)。
 
-> 两者都还没实现。`src/` 下目前只有每层的 `README.md`。
+> 程序侧只落了 `verify` 一段；skill 侧尚未实现。
 
 ---
 
@@ -109,24 +122,23 @@ flowchart LR
 | 知道检查按什么顺序跑、为什么这么排 | [`docs/02-流水线与关.md`](docs/02-流水线与关.md)                         |
 | 知道四层怎么切、每层吃什么吐什么   | [`docs/02` §29](docs/02-流水线与关.md)                                   |
 | **看懂某一层怎么写**         | [`L1`](src/l1_scan/README.md) 扫描 · [`L2`](src/l2_extract/README.md) 提取 · [`L3`](src/l3_verify/README.md) 验证 · [`L4`](src/l4_triage_fix/README.md) 判读与修改（本轮先不管） |
-| 知道数据长什么样（冻结的契约）     | [`schema/`](schema)                                                     |
+| 知道数据长什么样（已冻结的 `filelists`） | [`schema/`](schema)                                                     |
 | 跑离线自测、看完备性验收实验       | [`docs/04-自测与验收.md`](docs/04-自测与验收.md)                         |
 | 知道先做哪一步、哪里会翻车         | [`docs/05-实施顺序与风险.md`](docs/05-实施顺序与风险.md)                 |
 | 知道查出问题之后怎么办             | [`docs/06-修复段.md`](docs/06-修复段.md)                                 |
-| **知道 L1–L3 四个人的活怎么切** | [`docs/07-分工.md`](docs/07-分工.md)                                     |
 | 看 61 条原始问题清单               | [`problems/`](problems)                                                 |
 
 ```
 tool/
-├── docs/            7 篇设计文档（为什么 + 流水线怎么排 + 分工）
-├── schema/          3 份数据契约——四层之间的交接面
+├── docs/            7 篇设计/调研文档（00–02、04–06、08）
+├── schema/          1 份已冻结契约（filelists）+ 2 份待组员决定
 ├── src/             代码按四层分目录；实现设计就在各层的 README.md 里
 │   ├── l1_scan/  l2_extract/  l3_verify/  l4_triage_fix/
 │   └── common/   多层共用      precheck/  第 -2 / -1 层
-├── tests/fixture/   假源码树，6 个文件，每个埋了一条已知故障
+├── tests/           离线自测；fixture/ 是假源码树（6 个文件）
 ├── rules/           工具黑名单
 ├── problems/        61 条原始问题清单（验收集 + 知识库的原料）
-└── [待建] scan.py   唯一入口（--stage {env,fetch,tree,fix}）
+└── scan.py          唯一入口（本版：--stage verify）
 ```
 
 ---

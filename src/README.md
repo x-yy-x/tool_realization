@@ -128,7 +128,6 @@ tool/
       s5_lib.py                # libs / ldflags / .ld → 库与符号需求
       s6_include.py            # 使用 × 声明 → 头文件缺口
       s7_config.py             # defconfig / ARCH → 配置与架构需求
-      v_coverage.py            # 第 2 关：提取自检（文件类型普查 → 差集，见 19.8）
       README.md
 
     l3_verify/                 # L3 验证  → 本层 README
@@ -159,7 +158,7 @@ tool/
       README.md
 
   schema/                      # 数据契约（四层的交接面，见 schema/README.md）
-    filelist.schema.json
+    filelists.schema.json
     requirements.schema.json
     findings.schema.json
   rules/
@@ -200,7 +199,7 @@ tool/
 | `filelist.json`       | L1 扫描（第 0 关） | L2 全部提取任务 | `--stage tree`   |
 | `requirements.json`   | L2 提取（第 1 关） | L3 全部验证器   | `--only-extract` |
 | `findings.json`       | L3 验证 + 修复段   | L4 判读、修复段 | `--only-verify`  |
-| `report.md`           | L4 判读（第 8 关） | 人              | `--no-fix`       |
+| `report.md`           | L4 判读（第 7 关） | 人              | `--no-fix`       |
 
 分成六份而不是一份，三个理由（§15.3）：**提取在 Windows 跑、验证在服务器跑**，必须有文件传递；提取结果可存档，源码树变了能对比「需求清单的 diff」；扫一次很慢，验证阶段要能反复跑而不重扫。
 
@@ -236,12 +235,7 @@ tool/
       "maps_to": ["IMG-002"]
     }
   ],
-  "extractor_stats": {"S1": 412, "S2": 187, "S3": 96, "S4": 14, "S5": 33, "S6": 7, "S7": 6},
-  "self_check": {
-    "uncovered_file_types": [".rs", ".te", ".dts"],
-    "total_files_seen": 184203,
-    "total_files_parsed": 12930
-  }
+  "extractor_stats": {"S1": 412, "S2": 187, "S3": 96, "S4": 14, "S5": 33, "S6": 7, "S7": 6}
 }
 ```
 

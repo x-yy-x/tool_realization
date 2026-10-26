@@ -35,7 +35,7 @@
           },
           "kind": {
             "type": "string",
-            "description": "需求种类，决定它默认派给哪个验证器。12 种 kind 映射到六个验证器，多对一。",
+            "description": "需求种类，决定它默认派给哪个验证器。12 种 kind 映射到五个验证器，多对一。",
             "enum": [
               "tool",
               "repo",
@@ -99,23 +99,8 @@
 
     "extractor_stats": {
       "type": "object",
-      "description": "每个提取任务产出多少条。键是不带后缀的 S1…S7 / K1 / K2。",
+      "description": "每个提取任务产出多少条。键是不带后缀的 S1…S7 / K1 / K2。供报告与诊断使用。",
       "additionalProperties": { "type": "integer", "minimum": 0 }
-    },
-
-    "self_check": {
-      "type": "object",
-      "description": "第 2 关（v_coverage）的输入。提取器自己交代「我可能漏了什么」。",
-      "additionalProperties": false,
-      "properties": {
-        "uncovered_file_types": {
-          "type": "array",
-          "description": "出现在 filelist 的 other 里、却没有任何提取器认领的后缀。非空即说明规则缺了一类——补规则，不是补特例。",
-          "items": { "type": "string" }
-        },
-        "total_files_seen": { "type": "integer", "minimum": 0, "description": "透传自 filelist 的 stats。" },
-        "total_files_parsed": { "type": "integer", "minimum": 0, "description": "实际打开读过的文件数。parse / seen 的比例就是这套设计的全部代价所在。" }
-      }
     }
   }
 }

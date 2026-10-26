@@ -63,26 +63,28 @@
 
 | `kind`       | 匹配                              | 归 L2 的哪个任务用           |
 | ------------ | --------------------------------- | ---------------------------- |
-| `shell`    | `*.sh` / `*.bash` / 带 shebang | S1（工具）、K1（语法）       |
-| `make`     | `Makefile` / `*.mk`            | S1、K1                       |
-| `gn`       | `BUILD.gn` / `*.gni`           | S1（action）、S2、S5      |
-| `product`  | `vendor/*/config.json`           | S3、S7                     |
+| `shell`    | `*.sh` / `*.bash` / 带 shebang | S1（工具）、S5（`-l` 参数）、S6（脚本缺口）、K1 |
+| `make`     | `Makefile` / `*.mk`            | S1、S5（`LDFLAGS`/`LDLIBS`）、K1 |
+| `gn`       | `BUILD.gn` / `*.gni`           | S1（`action`）、S2（`//path`）、S4（工具链变量）、S5（`libs`/`ldflags`）、S7（`target_cpu`） |
+| `product`  | `vendor/*/config.json`           | S3（种子）、S4（board config）、S7（`target_cpu`） |
 | `bundle`   | `**/bundle.json`                 | S3                           |
 | `manifest` | `.repo/manifests/*.xml` + `.repo/manifest.xml` | S2            |
 | `header`   | `*.h` / `*.hpp`                | S6（**声明侧**）       |
 | `csrc`     | `*.c` / `*.cc` / `*.cpp`       | S6（**使用侧**）       |
 | `ldscript` | `*.ld` / `*.lds`               | S5                           |
 | `kconfig`  | `*_defconfig` / `Kconfig*`      | S7                           |
-| `ninja`    | `out/**/*.ninja`                 | 第 7 关（半静态档）          |
-| `other`    | 其余                              | **第 2 关的哨兵**      |
+| `ninja`    | `out/**/*.ninja`                 | 第 6 关（半静态档）          |
+| `other`    | 其余                              | 不参与提取（只统计）      |
 
-**最后一行是第 2 关的全部意义**：`other` 里若出现**一个提取器都不认识的新文件类型**，说明规则缺了一类——补规则，不是补特例（[`01` §9](../../docs/01-问题与论证.md)）。
+`other` 只用于统计。原设计用它做「提取自检」的哨兵（差集发现没人认领的文件类型），本版已取消该关——**假定提取规则覆盖全部承载声明的类型**（[`01` §9](../../docs/01-问题与论证.md)）。
 
 > ⚠️ **分类只按后缀与路径，不读内容。** 所以 `kind` 会误判（比如一个没有 `.sh` 后缀但带 `#!/bin/sh` 的脚本）——兜底靠 shebang 探测（只读前 2 字节）。
 
 ---
 
-## 16.4 输出：`filelist.json`
+## 16.4 输出：`filelists.json`
+
+> **契约已冻结为 `filelists.json`：每条只有 `path` + `classes`，见 [`schema/filelists.schema.json`](../../schema/filelists.schema.json)。下面的旧样例（`meta` / `files` / `stats`）待组员同步。**
 
 ```json
 {
@@ -97,9 +99,9 @@
 }
 ```
 
-契约见 [`schema/filelist.schema.json`](../../schema/filelist.schema.json)。
+契约见 [`schema/filelists.schema.json`](../../schema/filelists.schema.json)。
 
-`stats.total_files_seen` 和 `by_kind` **不是装饰**——第 2 关的 `v_coverage`（[`L2` §19.8](../l2_extract/README.md)）拿它们和提取器的认领集求差集。
+`stats.total_files_seen` 和 `by_kind` 供报告与诊断用（例如「扫了多少、解析了多少」的成本说明）。本版**不再**用它们做提取自检。
 
 ---
 
