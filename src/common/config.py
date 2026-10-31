@@ -7,7 +7,8 @@
 - **缺省值可跑**：没有配置文件时用一套安全默认值，不抛异常。预检工具不能因为
   配置缺失就罢工——它本来就是用来诊断环境的。
 - **未知键只警告，不失败**：配置会长，旧版本读到新键不该炸。
-- **排除规则不硬编**：`excludes` 由配置文件提供（L1 的约定，见 `l1_scan/README.md` §16.2）。
+- **排除规则不在这里**：L1 的目录剪枝是固定规则（[`l1_scan/rules.py`](../l1_scan/rules.py) 的
+  `EXCLUDED_DIRS`），不提供配置项——它属于工具，不属于某个被测工程。
 """
 
 from __future__ import annotations
@@ -17,10 +18,6 @@ from pathlib import Path
 from typing import Any
 
 from .yamlish import YamlError, load_file
-
-# 全树排除规则。注意后三条不是「全跳」，是「跳内容、留索引」——
-# 具体剪枝方式由 L1 的 walk() 实现，这里只给规则。
-DEFAULT_EXCLUDES = [".git/", ".repo/", "out/", "prebuilts/"]
 
 # 第 0 关的哨兵文件（docs/02 §18.1）
 DEFAULT_SENTINELS = [
@@ -56,7 +53,6 @@ class Config:
     # 默认 C 编译器。库与头文件的验证命令都从它派生。
     cc: str = ""
 
-    excludes: list[str] = field(default_factory=lambda: list(DEFAULT_EXCLUDES))
     sentinel_files: list[str] = field(default_factory=lambda: list(DEFAULT_SENTINELS))
     endpoints: list[Endpoint] = field(default_factory=list)
     timeouts: dict[str, float] = field(default_factory=lambda: dict(DEFAULT_TIMEOUTS))
@@ -101,8 +97,6 @@ class Config:
                     "target_triple", "repo_base_url", "cc"):
             take_str(key)
 
-        if "excludes" in data:
-            cfg.excludes = _str_list(data["excludes"], "excludes", cfg)
         if "sentinel_files" in data:
             cfg.sentinel_files = _str_list(data["sentinel_files"], "sentinel_files", cfg)
         if "endpoints" in data:
@@ -112,12 +106,19 @@ class Config:
 
         known = {
             "source_root", "product", "board", "tool_version", "target_triple",
-            "repo_base_url", "cc", "excludes", "sentinel_files", "endpoints",
+            "repo_base_url", "cc", "sentinel_files", "endpoints",
             "timeouts",
         }
         for key in data:
-            if key not in known:
-                cfg.warnings.append(f"{source}: 未知配置键 {key!r}（已忽略）")
+            if key in known:
+                continue
+            if key == "excludes":
+                cfg.warnings.append(
+                    f"{source}: excludes 已移除——L1 的排除目录是固定规则"
+                    f"（src/l1_scan/rules.py 的 EXCLUDED_DIRS），不再接受配置"
+                )
+                continue
+            cfg.warnings.append(f"{source}: 未知配置键 {key!r}（已忽略）")
         return cfg
 
     def timeout(self, kind: str) -> float:
@@ -136,7 +137,6 @@ class Config:
             "target_triple": self.target_triple,
             "repo_base_url": self.repo_base_url,
             "cc": self.cc,
-            "excludes": list(self.excludes),
             "sentinel_files": list(self.sentinel_files),
             "endpoints": [
                 {"name": e.name, "url": e.url, **({"timeout": e.timeout} if e.timeout else {})}
@@ -153,7 +153,7 @@ class ConfigError(ValueError):
 def _str_list(value: Any, key: str, cfg: Config) -> list[str]:
     if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
         cfg.warnings.append(f"{key} 应为字符串列表，已忽略")
-        return list(DEFAULT_EXCLUDES) if key == "excludes" else []
+        return []
     return list(value)
 
 

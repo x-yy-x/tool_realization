@@ -35,11 +35,11 @@ src/
 
 **一个目录 = 一份设计文档 = 一层。** 文档跟着代码走，不堆在 `docs/`。
 
-| 层                      | 设计文档（就在本层的 `README.md`）                        | 代码目录               | 输入 → 输出                          | 有副作用 |
-| ----------------------- | -------------------------------------------------------- | ---------------------- | ------------------------------------- | -------- |
-| **L1 扫描**       | [`L1`](l1_scan/README.md)                                 | `src/l1_scan/`       | 源码树 →`filelist.json`            | ❌       |
-| **L2 提取**       | [`L2`](l2_extract/README.md)（= 原 §19）                   | `src/l2_extract/`    | `filelist` → `requirements.json` | ❌       |
-| **L3 验证**       | [`L3`](l3_verify/README.md)（= 原 §18 + §20）            | `src/l3_verify/`     | `requirements` → `findings.json` | ❌       |
+| 层                      | 设计文档（就在本层的 `README.md`）                             | 代码目录               | 输入 → 输出                          | 有副作用 |
+| ----------------------- | ---------------------------------------------------------------- | ---------------------- | ------------------------------------- | -------- |
+| **L1 扫描**       | [`L1`](l1_scan/README.md)                                       | `src/l1_scan/`       | 源码树 →`filelist.json`            | ❌       |
+| **L2 提取**       | [`L2`](l2_extract/README.md)（= 原 §19）                       | `src/l2_extract/`    | `filelist` → `requirements.json` | ❌       |
+| **L3 验证**       | [`L3`](l3_verify/README.md)（= 原 §18 + §20）                 | `src/l3_verify/`     | `requirements` → `findings.json` | ❌       |
 | **L4 判读与修改** | [`L4`](l4_triage_fix/README.md) + [`06`](../docs/06-修复段.md) | `src/l4_triage_fix/` | `findings` → 报告 + 处置           | ✅       |
 
 > **不属四层的两块**：`common/`（`rules.py` / `probe.py`，被多层共用）、`precheck/`（第 -2/-1 层，是「没有 L2 的四层」）。见 §16。

@@ -1,9 +1,10 @@
 """唯一入口。
 
+    py scan.py --stage tree   --root <源码树> --out out/filelists.json
     py scan.py --stage verify --config config.yaml
 
-本版实现了 L3 的三个验证器（v_exists / v_identity / v_reach）与验证编排。
-其余阶段（env / fetch / tree / extract / fix）属于别的层，尚未实现——
+本版实现了 L1 扫描（`--stage tree`）与 L3 的三个验证器（v_exists / v_identity / v_reach）。
+其余阶段（env / fetch / extract / fix）属于别的层，尚未实现——
 **遇到时明确报错并退出 3，不做假装跑通的空壳。**
 
 退出码
@@ -28,8 +29,9 @@ if str(_ROOT) not in sys.path:
 from src.common import probe as probe_mod                  # noqa: E402
 from src.common.config import Config, ConfigError          # noqa: E402
 from src.common.models import (                            # noqa: E402
-    ContractError, Finding, load_requirements, save_findings,
+    ContractError, Finding, load_requirements, save_filelists, save_findings,
 )
+from src.l1_scan import scan as scan_tree                   # noqa: E402
 from src.l3_verify import v_exists, v_identity, v_reach    # noqa: E402
 
 STAGES = ("env", "fetch", "tree", "extract", "verify", "fix")
@@ -42,11 +44,14 @@ def main(argv: list[str] | None = None) -> int:
     _utf8_stdio()
     args = _parser().parse_args(argv)
 
+    if args.stage == "tree":
+        return _run_tree(args)
+
     if args.stage != "verify":
         print(
             f"[scan] 阶段 {args.stage!r} 尚未实现。\n"
-            f"       本版只实现了 verify（v_exists / v_identity / v_reach）。\n"
-            f"       其余阶段的代码属于 L1 / L2 / L4 / precheck，见各自的 README。",
+            f"       本版实现了 tree（L1 扫描）与 verify（v_exists / v_identity / v_reach）。\n"
+            f"       其余阶段的代码属于 L2 / L4 / precheck，见各自的 README。",
             file=sys.stderr,
         )
         return 3
@@ -57,13 +62,16 @@ def main(argv: list[str] | None = None) -> int:
     except (ConfigError, ContractError) as exc:
         print(f"[scan] 输入不可用: {exc}", file=sys.stderr)
         return 4
+    except OSError as exc:
+        print(f"[scan] 读不到输入文件: {exc}", file=sys.stderr)
+        return 4
 
     for warning in config.warnings:
         print(f"[config] {warning}", file=sys.stderr)
 
     findings, skipped = run_verify(reqs, config)
 
-    out = Path(args.out)
+    out = Path(args.out or "out/findings.json")
     save_findings(out, findings, round=args.round, target_env=args.target_env)
 
     _report(findings, skipped, out)
@@ -71,6 +79,39 @@ def main(argv: list[str] | None = None) -> int:
     if blocks and args.fail_fast:
         print(f"[scan] {blocks} 条 block，--fail-fast 生效", file=sys.stderr)
         return 2
+    return 0
+
+
+def _run_tree(args) -> int:
+    """L1：源码树 → filelists.json。"""
+    try:
+        config = Config.from_file(args.config)
+    except ConfigError as exc:
+        print(f"[scan] 配置不可用: {exc}", file=sys.stderr)
+        return 4
+    for warning in config.warnings:
+        print(f"[config] {warning}", file=sys.stderr)
+
+    root = args.root or config.source_root
+    if not root:
+        print("[scan] 缺少源码树：用 --root 指定，或在 config.yaml 里写 source_root",
+              file=sys.stderr)
+        return 4
+    if not Path(root).is_dir():
+        print(f"[scan] 源码树不存在: {root}", file=sys.stderr)
+        return 4
+
+    routes, stats = scan_tree(root, use_content=not args.no_content)
+    out = Path(args.out or "out/filelists.json")
+    try:
+        save_filelists(out, routes)
+    except (OSError, ContractError) as exc:
+        print(f"[scan] 写出失败: {exc}", file=sys.stderr)
+        return 4
+
+    print(f"[tree] {stats.total_files} 个文件，路由 {stats.routed} 个"
+          f"（读内容 {stats.content_read} 个，{stats.elapsed_ms} ms）")
+    print(f"[tree] written: {out}")
     return 0
 
 
@@ -141,15 +182,19 @@ def _utf8_stdio() -> None:
 def _parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="scan.py",
-        description="OpenHarmony 编译前预检流水线（本版：L3 verify）",
+        description="OpenHarmony 编译前预检流水线（本版：L1 tree + L3 verify）",
     )
     p.add_argument("--stage", choices=STAGES, default="verify")
     p.add_argument("--config", default="config.yaml",
-                   help="目标配置；缺省 config.yaml，不存在时用默认值")
+                   help="目标配置；tree 阶段只从中取 source_root（排除目录是固定规则）")
+    p.add_argument("--root", default="",
+                   help="[tree] 源码树根目录；缺省取 config.yaml 的 source_root")
+    p.add_argument("--no-content", action="store_true",
+                   help="[tree] 不读文件内容，只用名字与路径判定")
     p.add_argument("--requirements", default="out/requirements.json",
-                   help="L2 产物")
-    p.add_argument("--out", default="out/findings.json",
-                   help="L3 产物")
+                   help="[verify] L2 产物")
+    p.add_argument("--out", default=None,
+                   help="产物路径；tree 缺省 out/filelists.json，verify 缺省 out/findings.json")
     p.add_argument("--round", type=int, default=0,
                    help="修复轮次；0 = 初验")
     p.add_argument("--target-env", default="",

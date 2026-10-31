@@ -21,15 +21,9 @@ repo_base_url: ""
 # 验证用的 C 编译器。库 / 头文件 / 工具链身份都从它派生。
 cc: ""
 
-# L1 的排除规则（原地剪枝）。后三条不是「全跳」，是「跳内容、留索引」：
-#   .repo/     保留 manifest（S2 要读）
-#   out/       保留路径（BUILD-010 要判同名目录）
-#   prebuilts/ 只建索引（SYNC-005 要判存在性）
-excludes:
-  - .git/
-  - .repo/
-  - out/
-  - prebuilts/
+# L1 的排除目录是固定规则，不在这里配置：
+#   .git/  .repo/  out/  prebuilts/
+# 需要增减只能改 src/l1_scan/rules.py 的 EXCLUDED_DIRS。
 
 # 第 0 关的哨兵文件
 sentinel_files:

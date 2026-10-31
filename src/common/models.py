@@ -32,20 +32,92 @@ class ContractError(ValueError):
 
 
 # --------------------------------------------------------------------------- #
-# filelist.json
+# filelists.json
 # --------------------------------------------------------------------------- #
 
-@dataclass
-class FileEntry:
+#: classes 的合法取值与排序（S2 已从范围移除）
+CLASS_ORDER = ("S1", "S3", "S4", "S5", "S6", "S7")
+
+
+@dataclass(frozen=True)
+class FileRoute:
+    """filelists.json 的一条记录：一个文件 + 它要交给哪些提取器。
+
+    契约只有两个字段（`schema/filelists.schema.json`，2026-10-26 冻结）：
+    `path` 与 `classes`。不要加 size / kind / carrier / confidence——那是文档层
+    的东西，写进来会让 L2 依赖一个不该依赖的字段。
+    """
+
     path: str
-    kind: str
-    size: int | None = None
+    classes: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        _check_path(self.path)
+        if not self.classes:
+            raise ContractError(f"{self.path}: classes 不能为空")
+        if len(set(self.classes)) != len(self.classes):
+            raise ContractError(f"{self.path}: classes 有重复 {self.classes}")
+        unknown = [c for c in self.classes if c not in CLASS_ORDER]
+        if unknown:
+            raise ContractError(f"{self.path}: 未知提取器 {unknown}")
+        if list(self.classes) != sorted(self.classes, key=CLASS_ORDER.index):
+            raise ContractError(f"{self.path}: classes 必须按 S1,S3,S4,S5,S6,S7 升序")
 
     def to_dict(self) -> dict[str, Any]:
-        out: dict[str, Any] = {"path": self.path, "kind": self.kind}
-        if self.size is not None:
-            out["size"] = self.size
-        return out
+        return {"path": self.path, "classes": list(self.classes)}
+
+
+def _check_path(path: str) -> None:
+    """路径必须是相对源码根、正斜杠分隔、无 `.`/`..` 段。"""
+    if not path:
+        raise ContractError("path 不能为空")
+    if "\\" in path:
+        raise ContractError(f"{path!r}: 不能含反斜杠")
+    if path.startswith("/"):
+        raise ContractError(f"{path!r}: 不能以 / 开头")
+    if path.endswith("/"):
+        raise ContractError(f"{path!r}: 不能以 / 结尾")
+    if "//" in path:
+        raise ContractError(f"{path!r}: 不能含 //")
+    if "\n" in path or "\r" in path:
+        raise ContractError(f"{path!r}: 不能含换行")
+    if path.startswith("~"):
+        raise ContractError(f"{path!r}: 不能是 ~ 路径")
+    if len(path) > 1 and path[1] == ":":
+        raise ContractError(f"{path!r}: 不能是 Windows 盘符路径")
+    if any(seg in ("", ".", "..") for seg in path.split("/")):
+        raise ContractError(f"{path!r}: 不能含空段 / . / ..")
+
+
+def save_filelists(path: str | Path, routes: Iterable[FileRoute]) -> Path:
+    """写出 filelists.json（顶层就是一个数组，没有 meta/stats）。"""
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    payload = [r.to_dict() for r in routes]
+    p.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return p
+
+
+def load_filelists(path: str | Path) -> list[FileRoute]:
+    """读 filelists.json，并逐条校验契约。"""
+    p = Path(path)
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ContractError(f"{p}: JSON 语法错误: {exc}") from exc
+    if not isinstance(data, list):
+        raise ContractError(f"{p}: 顶层必须是数组")
+    out: list[FileRoute] = []
+    for i, item in enumerate(data):
+        if not isinstance(item, dict):
+            raise ContractError(f"{p}: 第 {i} 条不是对象")
+        _reject_unknown(item, ("path", "classes"), f"{p}[{i}]")
+        _require(item, ("path", "classes"), f"{p}[{i}]")
+        classes = item["classes"]
+        if not isinstance(classes, list) or not all(isinstance(c, str) for c in classes):
+            raise ContractError(f"{p}[{i}]: classes 必须是字符串数组")
+        out.append(FileRoute(str(item["path"]), tuple(classes)))
+    return out
 
 
 # --------------------------------------------------------------------------- #

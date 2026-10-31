@@ -49,6 +49,13 @@ class YamlishTest(unittest.TestCase):
         data = yamlish.load("a: 1\nb: 2.5\nc: false\nd: null\ne: 'x y'\n")
         self.assertEqual(data, {"a": 1, "b": 2.5, "c": False, "d": None, "e": "x y"})
 
+    def test_bom_is_stripped(self):
+        """PowerShell / 记事本保存的 UTF-8 BOM 不能污染第一个键。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            p = Path(tmp) / "c.yaml"
+            p.write_bytes((chr(0xFEFF) + "source_root: /x\n").encode("utf-8"))
+            self.assertEqual(yamlish.load_file(p), {"source_root": "/x"})
+
     def test_block_scalar_is_rejected(self):
         with self.assertRaises(yamlish.YamlError):
             yamlish.load("a: |\n  line\n")
@@ -58,9 +65,14 @@ class ConfigTest(unittest.TestCase):
     def test_defaults(self):
         cfg = Config()
         self.assertEqual(cfg.compiler(), "cc")
-        self.assertIn(".git/", cfg.excludes)
         self.assertIn("build/build.sh", cfg.sentinel_files)
         self.assertEqual(cfg.timeout("http"), 10.0)
+
+    def test_excludes_key_is_gone(self):
+        """排除目录已固定给 L1，配置里再写 excludes 只应得到一条警告。"""
+        cfg = Config.from_mapping({"excludes": [".git/"]})
+        self.assertTrue(any("excludes" in w for w in cfg.warnings))
+        self.assertFalse(hasattr(cfg, "excludes"))
 
     def test_mapping_and_unknown_key(self):
         cfg = Config.from_mapping({

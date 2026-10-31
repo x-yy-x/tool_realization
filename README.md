@@ -8,18 +8,18 @@
 
 ## STATUS：哪些能跑，哪些还是设计
 
-**先看这张表再看别的** —— 目前只实现了「总体把握」那一份（地基层 + L3 的三个验证器），其余三层仍是设计。
+**先看这张表再看别的** —— 已实现：地基层、**L1 扫描**、L3 的三个验证器；L2 提取仍是设计。
 
 | 部件                                  | 位置                                                     | 状态                                                                 |
 | ------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------------------- |
-| 设计文档（问题 / 流水线 / 风险 / 调研） | [`docs/`](docs)                                        | ✅ 7 篇（00–02、04–06、08）                                      |
+| 设计文档（问题 / 流水线 / 风险 / 调研） | [`docs/`](docs)                                        | ✅ 8 篇（00–02、04–06、08–09）                                    |
 | 设计文档（四层各怎么写）              | [`src/*/README.md`](src)                               | ✅ 5 篇，完整（`src/README.md` 是索引 + 四层各一篇）             |
 | **数据契约**                    | [`schema/`](schema)                                    | ✅ **`filelists` 已冻结**；`requirements` / `findings` 待组员决定 |
 | 假源码树（离线自测用）                | [`tests/fixture/`](tests/fixture)                      | ✅ 已落盘，6 个文件                                                  |
 | 工具黑名单                            | [`rules/tool_denylist.txt`](rules/tool_denylist.txt)    | ✅ 已落盘                                                            |
-| 入口                                  | [`scan.py`](scan.py)                                   | 🟡 `--stage verify` 可用；其余阶段明确报「未实现」（退出码 3） |
+| 入口                                  | [`scan.py`](scan.py)                                   | 🟡 `--stage tree` / `verify` 可用；env / fetch / extract / fix 报「未实现」（退出码 3） |
 | **地基层**（`common/`）       | [`src/common/`](src/common)                            | 🟡 `config` / `models` / `probe` / `yamlish` 已实现；`rules.py` 待做 |
-| **L1 扫描**                     | [`src/l1_scan/`](src/l1_scan)                          | ⬜ 设计完成（[本层 README](src/l1_scan/README.md)），未实现          |
+| **L1 扫描**                     | [`src/l1_scan/`](src/l1_scan)                          | ✅ **已实现**：源码树 → `filelists.json`（8 大类 → S1–S7，三层判据），15 项测试 |
 | **L2 提取**（七个 S 任务）      | [`src/l2_extract/`](src/l2_extract)                    | ⬜ 设计完成（[本层 README](src/l2_extract/README.md)），未实现          |
 | **L3 验证**（五个 `v_*`）    | [`src/l3_verify/`](src/l3_verify)                      | 🟡 `v_exists` / `v_identity` / `v_reach` 已实现；`v_tree` / `v_consistency` 待做 |
 | **L4 判读与修改**               | [`src/l4_triage_fix/`](src/l4_triage_fix)              | ⏸️ **本轮先不管**（设计在 [本层 README](src/l4_triage_fix/README.md) + [`06`](docs/06-修复段.md)） |
@@ -126,11 +126,12 @@ py -m unittest discover -s tests -t . -v
 | 跑离线自测、看完备性验收实验       | [`docs/04-自测与验收.md`](docs/04-自测与验收.md)                         |
 | 知道先做哪一步、哪里会翻车         | [`docs/05-实施顺序与风险.md`](docs/05-实施顺序与风险.md)                 |
 | 知道查出问题之后怎么办             | [`docs/06-修复段.md`](docs/06-修复段.md)                                 |
+| 看文件该分成哪几个功能大类、怎么认   | [`docs/09-文件功能大类与命名特征调研.md`](docs/09-文件功能大类与命名特征调研.md) |
 | 看 61 条原始问题清单               | [`problems/`](problems)                                                 |
 
 ```
 tool/
-├── docs/            7 篇设计/调研文档（00–02、04–06、08）
+├── docs/            8 篇设计/调研文档（00–02、04–06、08–09）
 ├── schema/          1 份已冻结契约（filelists）+ 2 份待组员决定
 ├── src/             代码按四层分目录；实现设计就在各层的 README.md 里
 │   ├── l1_scan/  l2_extract/  l3_verify/  l4_triage_fix/

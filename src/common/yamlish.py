@@ -35,7 +35,9 @@ class YamlError(ValueError):
 
 
 def load_file(path: str | Path) -> Any:
-    return load(Path(path).read_text(encoding="utf-8"))
+    # utf-8-sig：Windows 上用 PowerShell / 记事本保存的 YAML 常带 BOM，
+    # 不剥掉会让第一个键变成 '﻿source_root'，随后被当成未知键忽略。
+    return load(Path(path).read_text(encoding="utf-8-sig"))
 
 
 def load(text: str) -> Any:
