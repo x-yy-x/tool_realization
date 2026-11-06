@@ -1,0 +1,16 @@
+{
+  "product_name": "demo_board",
+  "subsystems": [
+    {
+      "subsystem": "chipset",
+      "components": [
+        {
+          "component": "demo_board",
+          "features": [
+            "board_debug = false"
+          ]
+        }
+      ]
+    }
+  ]
+}
