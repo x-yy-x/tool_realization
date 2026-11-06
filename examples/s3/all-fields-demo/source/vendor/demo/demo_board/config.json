@@ -1,0 +1,20 @@
+{
+  "product_name": "demo_product",
+  "inherit": ["productdefine/common/inherit/demo_base.json"],
+  "system_component": "productdefine/common/products/demo_system.json",
+  "subsystems": [
+    {
+      "subsystem": "demo",
+      "components": [
+        {
+          "component": "demo_core",
+          "features": ["demo_core_enable_trace = true"]
+        },
+        {
+          "component": "demo_optional",
+          "is_exclude": "true"
+        }
+      ]
+    }
+  ]
+}
