@@ -1,0 +1,127 @@
+{
+  "name": "@ohos/c_utils",
+  "version": "3.1.0",
+  "description": "c_utils",
+  "publishAs": "code-segment",
+  "segment": {
+    "destPath": "commonlibrary/c_utils"
+  },
+  "scripts": {
+    "install": "DEST_PATH=${DEP_BUNDLE_BASE}/commonlibrary/c_utils/base && mkdir -p $DEST_PATH && cp -r ./* $DEST_PATH"
+  },
+  "author": {},
+  "repository": "",
+  "license": "Apache License 2.0",
+  "component": {
+    "name": "c_utils",
+    "subsystem": "commonlibrary",
+    "adapted_system_type": [ "standard" ],
+    "features":[
+      "c_utils_feature_coverage",
+      "c_utils_debug_refbase",
+      "c_utils_track_all",
+      "c_utils_print_track_at_once",
+      "c_utils_debug_log_enabled",
+      "c_utils_feature_intsan",
+      "c_utils_parcel_object_check",
+      "c_utils_feature_enable_pgo",
+      "c_utils_feature_pgo_path"
+    ],
+    "deps": {
+      "components": [
+        "hilog",
+        "rust_cxx"
+      ],
+      "third_party": [
+        "bounds_checking_function"
+      ]
+    },
+    "build": {
+      "sub_component": [
+        "//commonlibrary/c_utils/base:utils",
+        "//commonlibrary/c_utils/base:utilsbase",
+        "//commonlibrary/c_utils/base:utils_rust"
+      ],
+      "inner_kits": [
+        {
+          "name": "//commonlibrary/c_utils/base:utils",
+          "header": {
+            "header_files": [
+              "ashmem.h",
+              "common_errors.h",
+              "common_timer_errors.h",
+              "datetime_ex.h",
+              "directory_ex.h",
+              "errors.h",
+              "file_ex.h",
+              "flat_obj.h",
+              "nocopyable.h",
+              "observer.h",
+              "parcel.h",
+              "pubdef.h",
+              "refbase.h",
+              "rwlock.h",
+              "safe_block_queue.h",
+              "safe_map.h",
+              "safe_queue.h",
+              "semaphore_ex.h",
+              "singleton.h",
+              "sorted_vector.h",
+              "string_ex.h",
+              "thread_ex.h",
+              "thread_pool.h",
+              "timer.h",
+              "unique_fd.h"
+            ],
+            "header_base": "//commonlibrary/c_utils/base/include"
+          }
+        },
+        {
+          "name": "//commonlibrary/c_utils/base:utilsbase",
+          "header": {
+            "header_files": [
+              "ashmem.h",
+              "common_errors.h",
+              "common_timer_errors.h",
+              "datetime_ex.h",
+              "directory_ex.h",
+              "errors.h",
+              "file_ex.h",
+              "flat_obj.h",
+              "nocopyable.h",
+              "observer.h",
+              "parcel.h",
+              "pubdef.h",
+              "refbase.h",
+              "rwlock.h",
+              "safe_block_queue.h",
+              "safe_map.h",
+              "safe_queue.h",
+              "semaphore_ex.h",
+              "singleton.h",
+              "sorted_vector.h",
+              "string_ex.h",
+              "thread_ex.h",
+              "thread_pool.h",
+              "timer.h",
+              "unique_fd.h"
+            ],
+            "header_base": "//commonlibrary/c_utils/base/include"
+          }
+        },
+        {
+          "name": "//commonlibrary/c_utils/base:utils_rust",
+          "header": {
+            "header_files": [],
+            "header_base": []
+          }
+        }
+      ],
+      "test": [
+        "//commonlibrary/c_utils/base/test:unittest",
+        "//commonlibrary/c_utils/base/test/benchmarktest:benchmarktest",
+        "//commonlibrary/c_utils/base/test/fuzztest:fuzztest"
+      ]
+    }
+  }
+}
