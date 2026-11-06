@@ -1,0 +1,6 @@
+[
+  {
+    "path": "commonlibrary_c_utils/bundle.json",
+    "classes": ["S3", "S6"]
+  }
+]

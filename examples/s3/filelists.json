@@ -1,0 +1,52 @@
+[
+  {
+    "path": "build/build.sh",
+    "classes": [
+      "S1"
+    ]
+  },
+  {
+    "path": "build/lite/config/subsystem/demo/BUILD.gn",
+    "classes": [
+      "S3"
+    ]
+  },
+  {
+    "path": "device/demo/ohos.build",
+    "classes": [
+      "S3"
+    ]
+  },
+  {
+    "path": "hilog/bundle.json",
+    "classes": [
+      "S3",
+      "S6"
+    ]
+  },
+  {
+    "path": "ipc/bundle.json",
+    "classes": [
+      "S3",
+      "S6"
+    ]
+  },
+  {
+    "path": "productdefine/common/inherit/base.json",
+    "classes": [
+      "S3"
+    ]
+  },
+  {
+    "path": "productdefine/common/products/demo.json",
+    "classes": [
+      "S3"
+    ]
+  },
+  {
+    "path": "vendor/demo/board/config.json",
+    "classes": [
+      "S3"
+    ]
+  }
+]
