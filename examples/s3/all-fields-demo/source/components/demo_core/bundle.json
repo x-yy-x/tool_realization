@@ -1,0 +1,23 @@
+{
+  "name": "@demo/demo_core",
+  "component": {
+    "name": "demo_core",
+    "subsystem": "demo",
+    "features": ["demo_core_enable_trace"],
+    "adapted_system_type": ["small", "standard"],
+    "adapted_kernel": ["linux", "liteos_a"],
+    "deps": {
+      "components": ["demo_log"],
+      "third_party": ["demo_safe_c"],
+      "kernel_special": {
+        "linux": ["demo_linux_adapter"]
+      },
+      "board_special": {
+        "demo_board": ["demo_board_driver"]
+      }
+    },
+    "build": {
+      "sub_component": ["//components/demo_core:core"]
+    }
+  }
+}
