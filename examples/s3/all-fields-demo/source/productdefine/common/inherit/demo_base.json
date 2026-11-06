@@ -1,0 +1,10 @@
+{
+  "subsystems": [
+    {
+      "subsystem": "demo",
+      "components": [
+        {"component": "demo_log"}
+      ]
+    }
+  ]
+}
