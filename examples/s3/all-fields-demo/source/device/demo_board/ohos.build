@@ -1,0 +1,8 @@
+{
+  "subsystem": "demo_device",
+  "parts": {
+    "demo_board": {
+      "module_list": ["//device/demo_board:board"]
+    }
+  }
+}
