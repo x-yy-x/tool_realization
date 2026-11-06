@@ -1,0 +1,12 @@
+{
+  "subsystems": [
+    {
+      "subsystem": "hiviewdfx",
+      "components": [
+        {
+          "component": "hilog"
+        }
+      ]
+    }
+  ]
+}
