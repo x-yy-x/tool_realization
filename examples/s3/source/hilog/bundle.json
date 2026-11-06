@@ -1,0 +1,9 @@
+{
+  "component": {
+    "name": "hilog",
+    "subsystem": "hiviewdfx",
+    "deps": {
+      "components": []
+    }
+  }
+}
