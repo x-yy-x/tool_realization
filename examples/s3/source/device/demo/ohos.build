@@ -1,0 +1,10 @@
+{
+  "subsystem": "chipset",
+  "parts": {
+    "demo_board": {
+      "module_list": [
+        "//device/demo:board"
+      ]
+    }
+  }
+}
