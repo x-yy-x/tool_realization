@@ -1,0 +1,16 @@
+{
+  "product_name": "demo",
+  "inherit": [
+    "productdefine/common/inherit/base.json"
+  ],
+  "subsystems": [
+    {
+      "subsystem": "communication",
+      "components": [
+        {
+          "component": "ipc"
+        }
+      ]
+    }
+  ]
+}
