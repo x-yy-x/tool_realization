@@ -1,0 +1,8 @@
+[
+  {"path": "components/demo_core/bundle.json", "classes": ["S3"]},
+  {"path": "device/demo_board/ohos.build", "classes": ["S3"]},
+  {"path": "vendor/demo/demo_board/config.json", "classes": ["S3"]},
+  {"path": "productdefine/common/inherit/demo_base.json", "classes": ["S3"]},
+  {"path": "productdefine/common/products/demo_system.json", "classes": ["S3"]},
+  {"path": "build/lite/config/subsystem/demo/BUILD.gn", "classes": ["S3"]}
+]
