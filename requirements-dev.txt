@@ -1,0 +1,2 @@
+# Optional, development-only full JSON Schema validation. Runtime is stdlib-only.
+jsonschema>=4.18,<5

@@ -1,5 +1,7 @@
 # OpenHarmony Build 检查流水线
 
+本分支提供 S3 部件声明提取器供服务器测试。已有 L1 清单时，在仓库根目录运行 `python3 -m src.l2_extract --root <源码根目录> --filelists <清单路径> --output <输出目录>`。输出目录应位于被检查的源码目录之外。[运行示例和输出说明](docs/12-S3程序使用说明.md)
+
 **编译前预检：把构建失败从「编到一半炸」提前到「编之前就知道」。**
 
 面对一个从没编译过的目标环境（新板卡、新架构、别人的服务器），你不知道它会在哪里炸。传统做法是「修一点、编一点」，一次编译几十分钟，几十次尝试才过得去。本项目不这么干——它扫一遍源码树，把「这棵树声明了哪些需求」读成一份清单，再去目标环境上逐条验证，在 `hb build` 之前把 `block` 级问题清零。
@@ -20,7 +22,7 @@
 | 入口                                  | [`scan.py`](scan.py)                                   | 🟡 `--stage tree` / `verify` 可用；env / fetch / extract / fix 报「未实现」（退出码 3） |
 | **地基层**（`common/`）       | [`src/common/`](src/common)                            | 🟡 `config` / `models` / `probe` / `yamlish` 已实现；`rules.py` 待做 |
 | **L1 扫描**                     | [`src/l1_scan/`](src/l1_scan)                          | ✅ **已实现**：源码树 → `filelists.json`（8 大类 → S1–S7，三层判据），15 项测试 |
-| **L2 提取**（七个 S 任务）      | [`src/l2_extract/`](src/l2_extract)                    | ⬜ 设计完成（[本层 README](src/l2_extract/README.md)），未实现          |
+| **L2 提取**（七个 S 任务）      | [`src/l2_extract/`](src/l2_extract)                    | S3 声明提取可独立运行，见[使用说明](docs/12-S3程序使用说明.md)          |
 | **L3 验证**（五个 `v_*`）    | [`src/l3_verify/`](src/l3_verify)                      | 🟡 `v_exists` / `v_identity` / `v_reach` 已实现；`v_tree` / `v_consistency` 待做 |
 | **L4 判读与修改**               | [`src/l4_triage_fix/`](src/l4_triage_fix)              | ⏸️ **本轮先不管**（设计在 [本层 README](src/l4_triage_fix/README.md) + [`06`](docs/06-修复段.md)） |
 | 第 -2 / -1 层：两段预检               | [`src/precheck/`](src/precheck)                        | 🟡**有能跑的原型**（`.claude/skills/edge-deploy/`），待提上来 |
