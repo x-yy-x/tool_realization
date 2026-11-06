@@ -1,0 +1,6 @@
+# Synthetic fixture: literal GN targets, no build is executed.
+import("//build/lite/config/subsystem/lite_subsystem.gni")
+lite_subsystem("demo") {
+  subsystem_components = [ "//ipc:ipc" ]
+  subsystem_components += [ "//hilog:hilog" ]
+}
