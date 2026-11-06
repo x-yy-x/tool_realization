@@ -1,0 +1,17 @@
+{
+  "name": "@ohos/ipc",
+  "component": {
+    "name": "ipc",
+    "subsystem": "communication",
+    "deps": {
+      "components": [
+        "hilog"
+      ]
+    },
+    "build": {
+      "sub_component": [
+        "//ipc:ipc"
+      ]
+    }
+  }
+}
