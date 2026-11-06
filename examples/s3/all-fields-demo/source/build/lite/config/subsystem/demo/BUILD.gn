@@ -1,0 +1,10 @@
+# Artificial S3 field showcase; this is not a buildable product.
+lite_subsystem("demo") {
+  subsystem_components = [ "//components/demo_core:core", "//components/demo_legacy:legacy" ]
+  subsystem_components += [ "//components/demo_log:log" ]
+  subsystem_components -= [ "//components/demo_legacy:legacy" ]
+  if (demo_core_enable_trace) {
+    subsystem_components += [ "//components/demo_trace:trace" ]
+  }
+  subsystem_components += common_components + [ "//components/demo_extra:extra" ]
+}
