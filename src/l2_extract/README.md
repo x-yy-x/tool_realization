@@ -99,6 +99,8 @@ def referenced_repos(root):
 
 ### 19.2 S3 部件需求（**完全确定性，最适合做 golden test**）
 
+> 完整说明（部件是什么、真实文件示例、字段填法、验证输入与算法、11 个实测坑）见 **[`S3-部件.md`](S3-部件.md)**。下面是实现草图。
+
 ```python
 def bundle_index(root):
     """全树扫 bundle.json，建 name → path 索引。"""

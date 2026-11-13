@@ -78,6 +78,9 @@ EXTRA_CLASSES_BY_NAME: dict[str, tuple[str, ...]] = {
 #: 而 `conf/distro/include/*.inc` 只是全局变量，不该给 S3。
 EXTRA_CLASSES_BY_PATH: tuple[tuple[re.Pattern[str], tuple[str, ...]], ...] = (
     (re.compile(r"(?:^|/)recipes-[^/]+/.*\.inc$"), ("S3",)),
+    # OHOS 的子系统模板（lite_subsystem）声明「子系统包含哪些组件」，是 S3 的输入。
+    # 它们同时是 GN 构建文件（C2），所以这里只追加 S3，不改原类别。
+    (re.compile(r"(?:^|/)(?:build/)?lite/config/subsystem/.*\.gn$"), ("S3",)),
 )
 
 # --------------------------------------------------------------------------- #

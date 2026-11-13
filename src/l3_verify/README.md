@@ -135,6 +135,8 @@ $CC -E -v - </dev/null 2>&1 | sed -n '/#include <...>/,/End of search/p'
 
 ### 20.3 v_consistency：三条集合运算
 
+> 部件那一条的完整说明（输入是什么、怎么算、finding 怎么写）见 [`L2/S3-部件.md`](../l2_extract/S3-部件.md)。
+
 都不碰系统，纯算：
 
 ```python

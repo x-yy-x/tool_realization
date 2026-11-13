@@ -107,6 +107,12 @@ class NameRulesTest(unittest.TestCase):
             rules.classes_for("C6", "boards/x/include/board.h"),
             ("S4", "S6", "S7"),
         )
+        # OHOS 子系统模板既像构建文件，又是「子系统→组件」映射，要追加 S3
+        self.assertIn("S3", rules.classes_for("C2", "build/lite/config/subsystem/aafwk/BUILD.gn"))
+        self.assertEqual(
+            rules.classes_for("C2", "build/lite/config/subsystem/aafwk/BUILD.gn"),
+            ("S1", "S3", "S4", "S5", "S7"),
+        )
 
     def test_classes_match_schema_examples(self):
         # schema 的两条示例必须能被规则复现
