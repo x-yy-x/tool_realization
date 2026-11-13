@@ -99,6 +99,8 @@ def referenced_repos(root):
 
 ### 19.2 S3 部件需求（**完全确定性，最适合做 golden test**）
 
+> 实现说明、全量验证与问题分析见 [`TEST-REPORT-S3.md`](TEST-REPORT-S3.md)。
+
 ```python
 def bundle_index(root):
     """全树扫 bundle.json，建 name → path 索引。"""

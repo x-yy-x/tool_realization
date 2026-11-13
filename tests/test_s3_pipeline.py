@@ -68,7 +68,8 @@ class S3Tests(unittest.TestCase):
             'build': {'sub_component': ['//ipc:ipc']}}})
         rows, diag, _ = self.extract()
         self.assertTrue(diag['complete'])
-        self.assertEqual(rows[0]['name'], 'communication:ipc')
+        self.assertEqual(rows[0]['name'], 'ipc')
+        self.assertEqual(rows[0]['subsystem'], 'communication')
         self.assertNotIn('@ohos/package', [r['name'] for r in rows])
         deps = [r for r in rows if r['kind'] == 'requires']
         self.assertEqual({r['name'] for r in deps}, {'hilog', 'bounds_checking_function'})
@@ -78,24 +79,59 @@ class S3Tests(unittest.TestCase):
 
     def test_products_parts_base_inherit_and_exclusion_are_declarations(self):
         self.put('productdefine/common/products/old.json', {'parts': {'sys:a': {}}})
-        self.put('productdefine/common/base/min.json', {'sys:b': {}})
+        self.put('productdefine/common/base/min.json', {'subsystems': [
+            {'subsystem': 'sys', 'components': [{'component': 'b'}]}]})
         self.put('productdefine/common/inherit/base.json', {'subsystems': [{'subsystem': 'sys', 'components': [{'component': 'c'}]}]})
         self.put('vendor/demo/board/config.json', {'inherit': ['productdefine/common/inherit/base.json'],
             'subsystems': [{'subsystem': 'sys', 'components': [{'component': 'a', 'features': ['x = true'], 'is_exclude': 'true'}]}]})
         rows, diag, _ = self.extract()
         self.assertTrue(diag['complete'])
         selections = [r for r in rows if r['kind'] == 'selects']
-        self.assertEqual([r['name'] for r in selections], ['sys:b', 'sys:c', 'sys:a', 'sys:a'])
+        self.assertEqual([r['name'] for r in selections], ['b', 'c', 'a', 'a'])
         self.assertEqual(selections[-1]['options']['is_exclude'], 'true')
         self.assertEqual(len([r for r in rows if r['kind'] == 'inherits']), 1)
         self.assertFalse(any(r['kind'] == 'component' for r in rows))
+
+    def test_identity_is_short_name_and_subsystem_is_attribute(self):
+        self.put('a/bundle.json', {'component': {'name': 'x', 'subsystem': 'new'}})
+        self.put('productdefine/common/inherit/old.json', {'subsystems': [
+            {'subsystem': 'old', 'components': [{'component': 'x'}]}]})
+        rows, diag, _ = self.extract()
+        self.assertTrue(diag['complete'])
+        component = [r for r in rows if r['kind'] == 'component'][0]
+        selection = [r for r in rows if r['kind'] == 'selects'][0]
+        self.assertEqual(component['name'], selection['name'])
+        self.assertEqual(component['subsystem'], 'new')
+        self.assertEqual(selection['subsystem'], 'old')
+
+    def test_duplicate_and_ambiguous_component_conflicts(self):
+        self.put('a/bundle.json', {'component': {'name': 'dup', 'subsystem': 's'}})
+        self.put('b/bundle.json', {'component': {'name': 'dup', 'subsystem': 's'}})
+        self.put('c/bundle.json', {'component': {'name': 'amb', 'subsystem': 's1'}})
+        self.put('d/bundle.json', {'component': {'name': 'amb', 'subsystem': 's2'}})
+        _, diag, _ = self.extract()
+        codes = {(c['name'], c['code']) for c in diag['conflicts']}
+        self.assertIn(('dup', 'DUPLICATE_COMPONENT'), codes)
+        self.assertIn(('amb', 'AMBIGUOUS_COMPONENT'), codes)
+        ambiguous = [c for c in diag['conflicts'] if c['code'] == 'AMBIGUOUS_COMPONENT'][0]
+        self.assertEqual(ambiguous['subsystems'], ['s1', 's2'])
+        self.assertEqual(len(ambiguous['at']), 2)
+
+    def test_base_subsystems_are_selections(self):
+        self.put('productdefine/common/base/mini.json', {'subsystems': [
+            {'subsystem': 'hiviewdfx', 'components': [{'component': 'hilog_lite'}]}]})
+        rows, diag, _ = self.extract()
+        self.assertTrue(diag['complete'])
+        self.assertEqual([(r['kind'], r['name']) for r in rows], [('selects', 'hilog_lite')])
+        self.assertEqual(rows[0]['subsystem'], 'hiviewdfx')
 
     def test_ohos_build_multiple_parts_and_module_lists(self):
         self.put('device/demo/ohos.build', {'subsystem': 'chipset', 'parts': {
             'board': {'module_list': ['//device/demo:board']}, 'drivers': {'module_list': []}}})
         rows, diag, _ = self.extract()
         self.assertTrue(diag['complete'])
-        self.assertEqual({r['name'] for r in rows if r['kind'] == 'component'}, {'chipset:board', 'chipset:drivers'})
+        self.assertEqual({r['name'] for r in rows if r['kind'] == 'component'}, {'board', 'drivers'})
+        self.assertTrue(all(r.get('subsystem') == 'chipset' for r in rows if r['kind'] == 'component'))
         self.assertEqual(len([r for r in rows if r['kind'] == 'build_targets']), 2)
 
     def test_routing_no_traversal_no_execution_no_other_modules(self):
@@ -108,7 +144,7 @@ class S3Tests(unittest.TestCase):
             rows, diag, evidence = self.extract()
         self.assertEqual(diag['files'], 1)
         self.assertTrue(diag['complete'])
-        self.assertEqual([r['name'] for r in rows], ['s:a'])
+        self.assertEqual([r['name'] for r in rows], ['a'])
         self.assertEqual(len(evidence['sources']), 1)
 
     def test_broken_sources_report_partial(self):
@@ -284,7 +320,7 @@ foreach (x, things) { subsystem_components += [x] }
     def test_no_files_is_empty_complete_extraction(self):
         result, diag, _ = self.extract()
         self.assertEqual(result, [])
-        self.assertEqual(diag, dict(complete=True, files=0, records=0, messages=[]))
+        self.assertEqual(diag, dict(complete=True, files=0, records=0, messages=[], conflicts=[]))
 
     def test_json_condition_keeps_raw_container_and_reports_partial(self):
         self.put('x/bundle.json', {'component': {'name': 'x', 'subsystem': 's',

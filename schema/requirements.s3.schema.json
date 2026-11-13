@@ -29,6 +29,10 @@
         "type": "string",
         "minLength": 1
       },
+      "subsystem": {
+        "type": "string",
+        "description": "声明处标注的子系统；只作属性，不参与身份匹配。"
+      },
       "at": {
         "type": "string",
         "pattern": ".+:[1-9][0-9]*$"

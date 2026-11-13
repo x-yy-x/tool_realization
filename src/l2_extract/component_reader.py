@@ -30,7 +30,7 @@ class ComponentReader:
                     continue
                 subsystem, name = key.split(':')
                 declaration = self.run.declare('selection', raw, self.run.evidence(document, pointer),
-                    classification=classification, subsystem=subsystem, name=name, key=key, selection_format='parts')
+                    classification=classification, subsystem=subsystem, name=name, key=name, selection_format='parts')
                 if declaration:
                     result.append(declaration)
             return result
@@ -55,15 +55,14 @@ class ComponentReader:
                     continue
                 declaration = self.run.declare('selection', raw, self.run.evidence(document, at),
                     classification=classification, subsystem=subsystem['subsystem'], name=raw['component'],
-                    key=subsystem['subsystem'] + ':' + raw['component'], selection_format='subsystems')
+                    key=raw['component'], selection_format='subsystems')
                 if declaration:
                     result.append(declaration)
         return result
 
     def definition(self, document, pointer, raw, name, subsystem, classification):
         declaration = self.run.declare('definition', raw, self.run.evidence(document, pointer),
-            classification=classification, name=name, subsystem=subsystem,
-            key=(subsystem + ':' + name) if nonempty(subsystem) else None)
+            classification=classification, name=name, subsystem=subsystem, key=name)
         if declaration is None:
             return
         if not nonempty(subsystem):
@@ -126,7 +125,7 @@ class ComponentReader:
             self.invalid('expected a JSON object', document)
             return document, []
         selected = []
-        if base:
+        if base and isinstance(data.get('parts'), dict) and 'subsystems' not in data:
             selected = self.selections(document, 'C5', parts=True, base=True)
         elif posixpath.basename(path) == 'ohos.build' and isinstance(data.get('parts'), dict):
             for name, raw in data['parts'].items():

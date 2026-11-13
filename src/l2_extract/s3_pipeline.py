@@ -57,13 +57,20 @@ def compact(result):
         if kind == 'definition':
             fields = {k: raw[k] for k in ('features', 'adapted_system_type', 'adapted_kernel')
                       if isinstance(raw.get(k), list) and raw[k]}
+            if declaration.get('subsystem'):
+                fields['subsystem'] = declaration['subsystem']
             add('component', name, ev, **fields)
             for key in ('module_list', 'targets'):
                 if key in raw:
                     add('build_targets', name, ev, field=key, targets=raw[key])
         elif kind == 'selection':
             options = {k: v for k, v in raw.items() if k != 'component'}
-            add('selects', name, ev, **{'from': ev['path']}, **({'options': options} if options else {}))
+            fields = {'from': ev['path']}
+            if declaration.get('subsystem'):
+                fields['subsystem'] = declaration['subsystem']
+            if options:
+                fields['options'] = options
+            add('selects', name, ev, **fields)
         elif kind == 'product_reference':
             pass  # Emitted from references below, with its actual relation.
         elif kind in ('subsystem', 'subsystem_components'):
@@ -136,6 +143,23 @@ def extract_s3(root, filelists):
         if d['kind'] == 'definition' and isinstance(deps, dict) and any(deps.get(k) for k in ('kernel_special', 'board_special')):
             messages.append(dict(code='CONDITIONAL_DEPENDENCY', message='conditional dependencies retained without evaluation', at=location(d['evidence'])))
     requirements = compact(result)
+    conflicts = []
+    by_name = {}
+    for d in result['declarations']:
+        if d['kind'] == 'definition':
+            by_name.setdefault(d['name'], []).append(d)
+    for name, items in sorted(by_name.items()):
+        if len(items) < 2:
+            continue
+        subsystems = sorted({i.get('subsystem') for i in items if i.get('subsystem')})
+        conflicts.append(dict(
+            code='AMBIGUOUS_COMPONENT' if len(subsystems) > 1 else 'DUPLICATE_COMPONENT',
+            name=name,
+            subsystems=subsystems,
+            at=[location(i['evidence']) for i in items],
+            message='component name declared {} times'.format(len(items)),
+        ))
     diagnostics = dict(complete=result['run_context']['status'] == 'complete' and not messages,
-                       files=len(files), records=len(requirements), messages=messages)
+                       files=len(files), records=len(requirements), messages=messages,
+                       conflicts=conflicts)
     return requirements, diagnostics, result
