@@ -97,7 +97,7 @@ def referenced_repos(root):
 
 然后 `referenced − manifest_paths` = **「源码里引用了但 manifest 里没有」的仓**——这就是 `BUILD-023/024/026` 的根因形态。
 
-### 19.2 S3 部件需求（**完全确定性，最适合做 golden test**）
+### 19.2 S3 组件需求（**完全确定性，最适合做 golden test**）
 
 > 实现说明、全量验证与问题分析见 [`TEST-REPORT-S3.md`](TEST-REPORT-S3.md)。
 
@@ -617,7 +617,7 @@ x86_64:  x86
 | ------ | ------------- | ---------- | ------ |
 | S1 | `shell` / `make` / `gn` | 命令名、包装器 | **低**（自由文本） |
 | S2 | `manifest` / `gn` | 仓清单、`//path` 引用 | 高（XML）/ 中（GN 引用） |
-| S3 | `bundle` / `product` | 部件名、依赖闭包 | 高 |
+| S3 | `bundle` / `product` | 组件名、依赖闭包 | 高 |
 | S4 | `product` / `gn` | `target_cpu`、工具链变量 | 中 |
 | S5 | `gn` / `make` / `ldscript` | `libs` / `ldflags` / `LDFLAGS`、链接脚本符号 | 中（`gn`/`make`）/ 高（`.ld`） |
 | S6 | `csrc` / `header` / `shell` | 类型使用 × `#include` 声明；脚本里的 `pushd`/`shopt`/`cp` 缺口 | 中（`csrc`）/ 低（脚本缺口） |
@@ -645,7 +645,7 @@ x86_64:  x86
 | `*.dts` | 设备树里的板级/架构声明没有提取器认领 | 未处理 |
 | 非 `vendor/*` 的产品配置 | 部分 OpenHarmony 版本把产品配置放在 `productdefine/common/products/*.json`，S3/S4/S7 读不到 | 未处理 |
 | heredoc / Make include | `.sh` 与 `Makefile` 里的命令可能漏掉 | 词法器的已知局限 |
-| 畸形 `bundle.json` | `json.JSONDecodeError` 时静默 `continue` | 会静默漏部件 |
+| 畸形 `bundle.json` | `json.JSONDecodeError` 时静默 `continue` | 会静默漏组件 |
 
 **这张表就是「假定提取是全面的」的实际代价。** 删除第 2 关后，唯一的兜底是覆盖率实验（[`04` §22](../../docs/04-自测与验收.md)）和真实构建失败。
 

@@ -138,7 +138,7 @@ $CC -E -v - </dev/null 2>&1 | sed -n '/#include <...>/,/End of search/p'
 都不碰系统，纯算：
 
 ```python
-missing_parts = closure(seeds, idx) - set(idx)          # 部件闭包差
+missing_parts = closure(seeds, idx) - set(idx)          # 组件闭包差
 gaps          = used_types - declared_includes          # 使用 × 声明差
 arch_ok       = arch_map.get(target_cpu) == kbuild_arch # 映射一致性
 ```

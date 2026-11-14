@@ -68,7 +68,7 @@ LANE_CENTERS = [LANE_TOP + i * (LANE_H + LANE_GAP) + LANE_H / 2 for i in range(7
 S_LABELS = [
     ("S1 工具", "tool"),
     ("S2 仓", "repo"),
-    ("S3 部件", "component"),
+    ("S3 组件", "component"),
     ("S4 工具链", "toolchain"),
     ("S5 库/符号", "lib + symbol"),
     ("S6 头文件", "header gap"),

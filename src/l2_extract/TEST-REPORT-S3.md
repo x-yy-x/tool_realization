@@ -1,24 +1,24 @@
-# OpenHarmony 部件（S3）提取报告
+# OpenHarmony 组件（S3）提取报告
 
-> **测什么**：从源码树里把「部件」相关的声明读成结构化记录。
+> **测什么**：从源码树里把「组件」相关的声明读成结构化记录。
 > **用什么**：`x-yy-x/tool_realization` 的 S3 提取器，冻结提交 `7c045da`（分支 `fix/s3-20261113`）。
 > **数据来源**：OpenHarmony 5.1 完整源码树（806,106 个文件）+ OpenHarmony 6.1 按仓视图（642 个声明文件）。
 > **报告只回答一件事**：S3 能读出什么、读出来以后能验什么、在真实树上暴露了哪些问题。
 
 ---
 
-## 1. 组件（部件）是什么
+## 1. 组件是什么
 
 ### 1.1 一句话定义
 
-**部件 = 在 `bundle.json` 里用 `component` 声明的一个交付单元。**
+**组件 = 在 `bundle.json` 里用 `component` 声明的一个交付单元。**
 
 它必须说清三件事：
 
 | 要点                   | 字段                                         | 例子                                |
 | ---------------------- | -------------------------------------------- | ----------------------------------- |
 | 叫什么、属于哪个子系统 | `component.name` + `component.subsystem` | `hilog`，属于 `hiviewdfx`       |
-| 依赖哪些别的部件       | `component.deps.components`                | `c_utils`、`init`、`zlib`     |
+| 依赖哪些别的组件       | `component.deps.components`                | `c_utils`、`init`、`zlib`     |
 | 产出哪些构建目标       | `component.build.sub_component`            | `//base/hiviewdfx/hilog:libhilog` |
 
 ### 1.2 和子系统、模块、仓的关系
@@ -26,8 +26,8 @@
 ```text
 产品 demo（productdefine/common/products/demo.json）
 └── 子系统 communication
-    └── 部件 ipc（bundle.json: component.name = "ipc"）
-        ├── 依赖部件 hilog        ← bundle.json 的 deps.components
+    └── 组件 ipc（bundle.json: component.name = "ipc"）
+        ├── 依赖组件 hilog        ← bundle.json 的 deps.components
         └── 构建目标 //ipc:ipc    ← bundle.json 的 build.sub_component
 ```
 
@@ -35,34 +35,34 @@
 | -------------- | ------------------ | ------------------------------------------ | --------------------- |
 | 产品           | 一次构建的目标     | 产品配置                                   | `demo`              |
 | 子系统         | 分组/命名空间      | 产品配置的 `subsystem`；GN 模板          | `communication`     |
-| **部件** | **交付单元** | `bundle.json`；旧格式 `ohos.build`     | `ipc`               |
+| **组件** | **交付单元** | `bundle.json`；旧格式 `ohos.build`     | `ipc`               |
 | 模块/目标      | 真正被编译的东西   | `bundle.json` 的 `build`；`BUILD.gn` | `//ipc:ipc`         |
 | 仓             | 一个 git 仓库      | manifest                                   | `communication_ipc` |
 
 三条容易混的：
 
-1. **产品只选到部件，不直接选模块。**
-2. **一个仓可以有多个部件**（一个仓里多份 `bundle.json`）。
+1. **产品只选到组件，不直接选模块。**
+2. **一个仓可以有多个组件**（一个仓里多份 `bundle.json`）。
 3. **子系统只是标签**，没有自己的清单文件，也不会报「子系统找不到」。
 
 ### 1.3 身份：短名为主，子系统是属性
 
-S3 用**部件短名**做身份（`hilog`），把子系统当属性记录下来。
+S3 用**组件短名**做身份（`hilog`），把子系统当属性记录下来。
 
 为什么不用「子系统:名字」当身份：
 
 - 产品配置里的子系统标签**经常和 bundle 里的不一致**；
-- 实测 5.1 全树里，**254 条选择记录**的标签与定义不同（例如同一部件在 `appexecfwk` 和 `bundlemanager` 两个标签下出现）；
-- 用复合键会把同一个部件拆成两个，造成假的「缺失」。
+- 实测 5.1 全树里，**254 条选择记录**的标签与定义不同（例如同一组件在 `appexecfwk` 和 `bundlemanager` 两个标签下出现）；
+- 用复合键会把同一个组件拆成两个，造成假的「缺失」。
 
-代价：不同子系统真出现同名部件时，需要靠重复定义诊断和产品上下文消歧（见 §4.3）。
+代价：不同子系统真出现同名组件时，需要靠重复定义诊断和产品上下文消歧（见 §4.3）。
 
-### 1.4 部件不是什么
+### 1.4 组件不是什么
 
 | 不是           | 为什么                                                         |
 | -------------- | -------------------------------------------------------------- |
-| 不是一个仓     | 仓可以包含多个部件；仓在 ≠ 产品要的部件在                     |
-| 不是一个模块   | 模块是构建目标，数量是部件的几十倍；产品配置不引用模块         |
+| 不是一个仓     | 仓可以包含多个组件；仓在 ≠ 产品要的组件在                     |
+| 不是一个模块   | 模块是构建目标，数量是组件的几十倍；产品配置不引用模块         |
 | 不是一个安装包 | 包是发行单位（`debian/control`、`package.json`），粒度不同 |
 
 ---
@@ -73,9 +73,9 @@ S3 用**部件短名**做身份（`hilog`），把子系统当属性记录下来
 
 | 文件            | 作用                           | 例子                                           | 提取成什么                                       |
 | --------------- | ------------------------------ | ---------------------------------------------- | ------------------------------------------------ |
-| `bundle.json` | 部件定义、依赖、构建目标       | `base/hiviewdfx/hilog/bundle.json`           | `component` / `requires` / `build_targets` |
-| `ohos.build`  | 旧格式部件定义                 | `device/demo/ohos.build`                     | `component` / `build_targets`                |
-| 板级产品配置    | 产品选了哪些部件               | `vendor/demo/demo_board/config.json`         | `selects`                                      |
+| `bundle.json` | 组件定义、依赖、构建目标       | `base/hiviewdfx/hilog/bundle.json`           | `component` / `requires` / `build_targets` |
+| `ohos.build`  | 旧格式组件定义                 | `device/demo/ohos.build`                     | `component` / `build_targets`                |
+| 板级产品配置    | 产品选了哪些组件               | `vendor/demo/demo_board/config.json`         | `selects`                                      |
 | 产品清单        | 产品选择 + 继承                | `productdefine/common/products/demo.json`    | `selects` / `inherits`                       |
 | 继承清单        | 产品清单的一部分               | `productdefine/common/inherit/base.json`     | `selects`                                      |
 | 公共基础清单    | mini/small/standard 的公共选择 | `productdefine/common/base/mini_system.json` | `selects`                                      |
@@ -111,7 +111,7 @@ S3 用**部件短名**做身份（`hilog`），把子系统当属性记录下来
 - 依赖：`hilog → bounds_checking_function / c_utils / init / zlib`
 - 构建目标：`//…:hilogd`、`//…:libhilog`
 
-**注意**：顶层 `"name": "@ohos/hilog"` 不是部件名，S3 只认 `component.name`。产品配置引用的也是 `hilog`，不是 `@ohos/hilog`。
+**注意**：顶层 `"name": "@ohos/hilog"` 不是组件名，S3 只认 `component.name`。产品配置引用的也是 `hilog`，不是 `@ohos/hilog`。
 
 ### 2.3 `ohos.build`：旧格式
 
@@ -128,7 +128,7 @@ S3 用**部件短名**做身份（`hilog`），把子系统当属性记录下来
 
 读出来：定义 `demo_board`（子系统 `chipset`），构建目标 `//device/demo:board`。
 
-2.x / 3.0 的树里没有 `bundle.json`，只有这种格式；不认它就会漏掉整个时代的部件。
+2.x / 3.0 的树里没有 `bundle.json`，只有这种格式；不认它就会漏掉整个时代的组件。
 
 ### 2.4 产品配置：选择
 
@@ -208,7 +208,7 @@ if (demo_core_enable_trace) {
 
 ### 2.8 不读的文件
 
-`build/build.sh`、示例应用配置、测试配置等即使被路由进来，S3 也只在 `diagnostics` 里报「无法识别」，不会把脚本里的词当成部件。
+`build/build.sh`、示例应用配置、测试配置等即使被路由进来，S3 也只在 `diagnostics` 里报「无法识别」，不会把脚本里的词当成组件。
 
 ---
 
@@ -218,13 +218,13 @@ if (demo_core_enable_trace) {
 
 | kind                     | 回答的问题                                        | 来自哪种文件                               | 例子                            |
 | ------------------------ | ------------------------------------------------- | ------------------------------------------ | ------------------------------- |
-| `component`            | 树里**有**这个部件吗？                      | `bundle.json`、`ohos.build`            | `hilog`                       |
-| `requires`             | 这个部件**依赖**谁？                        | `deps.components`                        | `hilog → c_utils`            |
+| `component`            | 树里**有**这个组件吗？                      | `bundle.json`、`ohos.build`            | `hilog`                       |
+| `requires`             | 这个组件**依赖**谁？                        | `deps.components`                        | `hilog → c_utils`            |
 | `conditional_requires` | 依赖是否**带内核/板卡条件**？               | `deps.kernel_special`、`board_special` | `linux → demo_linux_adapter` |
 | `selects`              | **产品**选了谁？                            | 产品配置、inherit、vendor 配置             | `demo 选 ipc`                 |
 | `inherits`             | 产品清单**还引用了哪个文件**？              | `inherit`                                | `demo → base.json`           |
 | `system_component`     | 产品指定的**系统组件包**是哪个？            | `system_component` 字段                  | —                              |
-| `build_targets`        | 这个部件**产出哪些构建目标**？              | `build.sub_component`、`module_list`   | `//ipc:ipc`                   |
+| `build_targets`        | 这个组件**产出哪些构建目标**？              | `build.sub_component`、`module_list`   | `//ipc:ipc`                   |
 | `subsystem`            | GN 里**声明了哪个子系统**？                 | 子系统 `BUILD.gn`                        | `demo`                        |
 | `subsystem_components` | GN 里子系统**包含哪些组件**、怎么加怎么减？ | 同上                                       | `=` / `+=` / `-=`         |
 
@@ -234,7 +234,7 @@ if (demo_core_enable_trace) {
 - 「产品要什么」看 `selects`；
 - 「依赖闭不闭合」要 `requires` + `component` + `selects`；
 - 「条件依赖」要 `conditional_requires` + 配置；
-- 「部件对应哪些模块」看 `build_targets`。
+- 「组件对应哪些模块」看 `build_targets`。
 
 合成一张表就分不清「谁说的、在哪说的、说的哪种关系」。
 
@@ -242,8 +242,8 @@ if (demo_core_enable_trace) {
 
 | 验证问题                                | 需要的记录                                 |
 | --------------------------------------- | ------------------------------------------ |
-| 产品选的部件，树里都有定义吗？          | `selects` + `component`                |
-| 这些部件的**依赖闭包**闭合吗？    | `selects` + `requires` + `component` |
+| 产品选的组件，树里都有定义吗？          | `selects` + `component`                |
+| 这些组件的**依赖闭包**闭合吗？    | `selects` + `requires` + `component` |
 | 带条件的依赖，在当前内核/板卡下满足吗？ | `conditional_requires` + 环境/配置       |
 | 产品继承链完整吗？                      | `inherits` + `selects`                 |
 | 子系统 GN 清单和 bundle 清单一致吗？    | `subsystem_components` + `component`   |
@@ -268,7 +268,7 @@ if (demo_core_enable_trace) {
 | ------------------------ | ---------------------------: | ---------------------------: |
 | 输入文件                 |                          531 |                          642 |
 | 记录总数                 |                        8,621 |                        9,918 |
-| 部件定义                 |          481（476 个唯一名） |          587（582 个唯一名） |
+| 组件定义                 |          481（476 个唯一名） |          587（582 个唯一名） |
 | 产品选择                 |                        2,771 |                        2,927 |
 | 依赖记录                 |      4,868（显式第三方 252） |                        5,794 |
 | 选择记录同名命中         |       2,676 / 2,771（96.6%） |                           — |
@@ -292,7 +292,7 @@ if (demo_core_enable_trace) {
 真实例子（5.1）：
 
 - `productdefine/common/inherit/headless.json:81` 用 `appexecfwk` 标签选 `bundle_framework`；
-- 同一文件 `:92` 又用 `bundlemanager` 标签选同一个部件；
+- 同一文件 `:92` 又用 `bundlemanager` 标签选同一个组件；
 - 定义在 `foundation/bundlemanager/bundle_framework/bundle.json:9`，标签是 `bundlemanager`。
 
 全树里这种「标签和定义不一致」的选择有 **254 条**。
@@ -352,9 +352,9 @@ A 组和 B 组的**记录内容只差 2 条**（A 独有 0，B 独有 2）。
 
 `drivers/interface/display/bundle.json` 的 `features` 出现了两次（第 22 行和第 28 行）。
 
-S3 的严格解析拒绝整份文件 → 部件 `drivers_interface_display` 没有定义 → 它在「产品选择」和「他人依赖」两侧同时变成未解析。
+S3 的严格解析拒绝整份文件 → 组件 `drivers_interface_display` 没有定义 → 它在「产品选择」和「他人依赖」两侧同时变成未解析。
 
-**影响**：一个格式错误会让整个部件从清单里消失；普通 `json.loads` 会静默取最后一个，问题被藏起来。
+**影响**：一个格式错误会让整个组件从清单里消失；普通 `json.loads` 会静默取最后一个，问题被藏起来。
 
 5.1 的 531 个载体文件里独立复核没有发现重复键；6.1 的视图里有 1 个。
 
@@ -365,16 +365,16 @@ S3 的严格解析拒绝整份文件 → 部件 `drivers_interface_display` 没�
 **在 OHOS 里的例子**：
 
 - `third_party/rust/rust` 这个仓没有自己的 `bundle.json`；
-- 它下面挂了 11 个子模块（Rust 的各个 crate），部件声明在子模块里；
+- 它下面挂了 11 个子模块（Rust 的各个 crate），组件声明在子模块里；
 - 我们用 `git ls-tree -r` 看主仓，只能看到 11 个指针，看不到子模块里的 `bundle.json`。
 
 **结果**：
 
-- 这类部件不是「名字对不上」，而是**从来没进入清单**；
+- 这类组件不是「名字对不上」，而是**从来没进入清单**；
 - 报告里不会出现「未解析」，因为它连候选都不是；
-- 依赖它的部件会报「找不到定义」，但根因不是它不存在，而是我们没看进去。
+- 依赖它的组件会报「找不到定义」，但根因不是它不存在，而是我们没看进去。
 
-**影响**：Rust 相关部件（以及其他用子模块的仓）覆盖不完整；这类缺口不会产生诊断，属于静默缺口。
+**影响**：Rust 相关组件（以及其他用子模块的仓）覆盖不完整；这类缺口不会产生诊断，属于静默缺口。
 
 **建议**：采集时检测 gitlink（`ls-tree` 里 mode 为 `160000` 的条目），二选一：
 
@@ -402,7 +402,7 @@ S3 的严格解析拒绝整份文件 → 部件 `drivers_interface_display` 没�
 | 改名 / 拼写      | 配置阶段报 `component not found`，构建直接停止                       |
 | 同物不同标签     | 按名字解析通常不炸，但子系统归组、feature 门控可能错                   |
 | 重复定义         | 不必然失败，可能静默取一份 → 依赖少了、目标错了 → 链接失败或功能丢失 |
-| 严格 JSON 丢文件 | 部件定义整份消失，构建把它当不存在                                     |
+| 严格 JSON 丢文件 | 组件定义整份消失，构建把它当不存在                                     |
 | 子模块未覆盖     | 静态清单看不到，构建却会用到                                           |
 
 **但提取结果不能直接断言「一定编不过」**——它只证明「声明之间不一致」。要回答「能不能编」，需要验证层做闭包差（产品要的传递闭包 − 树里有的定义）。
@@ -413,7 +413,7 @@ S3 的严格解析拒绝整份文件 → 部件 `drivers_interface_display` 没�
 
 ### 5.1 结论
 
-1. S3 能把分散的部件声明转成**带文件行号的事实清单**，适合作为验证前的可审计输入。
+1. S3 能把分散的组件声明转成**带文件行号的事实清单**，适合作为验证前的可审计输入。
 2. 两次独立实验（5.1 完整树、6.1 按仓视图）的命中率接近（88.5% / 89.6%），**重复定义完全一致（5 个）**——说明这些是跨版本稳定的结构性问题。
 3. 当前主要问题不是「读不出来」，而是**读出来的东西对不上**：标签漂移、改名、重复定义、格式化错误、子模块缺口。
 4. 提取与验证必须分开：S3 只出事实，判断留给验证层。

@@ -123,7 +123,7 @@ tool/
       shelltoken.py            # shell 分词器（S1 的地基，最需要测试）
       s1_tool.py               # 命令 → 宿主工具需求
       s2_repo.py               # manifest → 源码仓需求
-      s3_part.py               # config.json + bundle.json → 部件需求（含闭包）
+      s3_part.py               # config.json + bundle.json → 组件需求（含闭包）
       s4_toolchain.py          # 编译器 + target_cpu → 工具链需求
       s5_lib.py                # libs / ldflags / .ld → 库与符号需求
       s6_include.py            # 使用 × 声明 → 头文件缺口

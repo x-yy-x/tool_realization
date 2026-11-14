@@ -25,7 +25,7 @@ def write_json(path, data):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="S3 部件提取器：读取 path/classes 清单，输出精简声明与关系")
+    parser = argparse.ArgumentParser(description="S3 组件提取器：读取 path/classes 清单，输出精简声明与关系")
     parser.add_argument("--filelists", required=True, help="L1 filelists.json (path/classes array)")
     parser.add_argument("--root", required=True, help="existing source checkout root")
     parser.add_argument("--output", default="out/s3", help="output directory outside source root")
