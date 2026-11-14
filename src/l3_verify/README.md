@@ -135,12 +135,12 @@ $CC -E -v - </dev/null 2>&1 | sed -n '/#include <...>/,/End of search/p'
 
 ### 20.3 v_consistency：三条集合运算
 
-> 部件那一条的完整说明（输入是什么、怎么算、finding 怎么写）见 [`L2/S3-部件.md`](../l2_extract/S3-部件.md)。
+> 组件那一条的完整说明（输入是什么、怎么算、finding 怎么写）见 [`L2/S3-组件.md`](../l2_extract/S3-组件.md)。
 
 都不碰系统，纯算：
 
 ```python
-missing_parts = closure(seeds, idx) - set(idx)          # 部件闭包差
+missing_parts = closure(seeds, idx) - set(idx)          # 组件闭包差
 gaps          = used_types - declared_includes          # 使用 × 声明差
 arch_ok       = arch_map.get(target_cpu) == kbuild_arch # 映射一致性
 ```
