@@ -353,6 +353,8 @@ def tools_from_python(src):
 
 ### 19.4 S4 工具链需求
 
+> 完整说明（工具链四元组、与普通工具的区别、真实声明示例、验证命令、产品域）见 [`S4-S7-工具链与配置架构.md`](S4-S7-工具链与配置架构.md)。
+
 - 从 board config 读 `target_cpu`
 - 从 `//build/toolchain/...` 找 `cc` / `cxx` / `ld` 变量（常是 `$ohos_cc` 形式的间接引用，**需追变量定义**；追不到就记 low 并留源码）
 - **实用捷径**：OpenHarmony 的 clang 固定在 `prebuilts/clang/ohos/<host>/llvm/bin/` → **先当仓做存在性检查**，便宜且确定
@@ -562,6 +564,8 @@ def find_gap(path, src):
 `BUILD-008` 的命中**只能算 `warn` 不能算 `block`**——间接包含无法从静态判定，这是设计上就承认的局限。
 
 ### 19.7 S7 配置与架构
+
+> 完整说明（工具链四元组、与普通工具的区别、真实声明示例、验证命令、产品域）见 [`S4-S7-工具链与配置架构.md`](S4-S7-工具链与配置架构.md)。
 
 - board → `kernel/linux/config/<ver>/arch/<ARCH>/configs/<name>_defconfig` 存在性
 - `target_cpu`(GN) ↔ `ARCH`(Kbuild) 的映射**不在源码里**，是外部知识 → `rules/arch_map.yaml`
